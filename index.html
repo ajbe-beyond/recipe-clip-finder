@@ -92,6 +92,18 @@
   .ft-txt mark { background:rgba(251,191,36,.28); color:#fde68a; border-radius:3px;
     padding:1px 2px; font-weight:700; }
   .ft-more { font-size:12.5px; color:var(--dim); padding-top:12px; }
+  .sem-row { display:flex; gap:9px; align-items:stretch; flex-wrap:wrap; }
+  .sem-row input { flex:1; min-width:200px; }
+  #semGo { background:rgba(139,92,246,.15); border:1px solid rgba(139,92,246,.45);
+    color:#c4b5fd; border-radius:10px; padding:0 20px; font-family:inherit; font-size:14.5px;
+    font-weight:700; cursor:pointer; white-space:nowrap; }
+  #semGo:hover:not(:disabled) { filter:brightness(1.3); }
+  #semGo:disabled { opacity:.45; cursor:default; }
+  .sem .ft-jump { background:rgba(139,92,246,.12); border-color:rgba(139,92,246,.4); color:#c4b5fd; }
+  .sem-score { font-family:'Inter',sans-serif; font-size:9.5px; font-weight:800; color:var(--dim);
+    text-align:center; letter-spacing:.5px; }
+  .bar { height:3px; border-radius:2px; background:rgba(139,92,246,.18); overflow:hidden; margin-top:3px; }
+  .bar i { display:block; height:100%; background:#8b5cf6; }
 
   /* ── GROUPS ── */
   .group { margin-bottom:26px; }
@@ -203,6 +215,22 @@
     <input type="search" id="qt" placeholder="เช่น แม่น้ำเปลี่ยนทิศ  หรือ  change, culture" autocomplete="off">
     <div class="ft-status" id="ftStatus"></div>
     <div id="ftResults"></div>
+  </section>
+
+  <section class="ft sem">
+    <div class="ft-head">
+      <span class="ft-title">🧠 ค้นหาความหมายใกล้เคียง</span>
+      <span class="ft-sub">อธิบายเรื่องที่อยากได้เป็นภาษาคนแบบไหนก็ได้ — ระบบหาช่วงที่<b style="color:var(--muted)">ความหมายใกล้เคียง</b>
+        ให้ ถึงแม้แขกจะไม่ได้พูดคำนั้นตรงๆ<br>
+        <span style="color:var(--dim)">ครั้งแรกต้องโหลดโมเดล AI ~120 MB (เก็บไว้ในเครื่อง ครั้งต่อไปไม่ต้องโหลดใหม่)
+        — แนะนำให้ทำตอนอยู่บนไวไฟที่เร็ว</span></span>
+    </div>
+    <div class="sem-row">
+      <input type="search" id="qs" placeholder="เช่น ลูกน้องหมดไฟ อยากลาออก / ตัดสินใจตอนไม่มีข้อมูลพอ" autocomplete="off">
+      <button type="button" id="semGo">ค้นหา</button>
+    </div>
+    <div class="ft-status" id="semStatus"></div>
+    <div id="semResults"></div>
   </section>
 
   <div class="toolbar">
@@ -653,6 +681,110 @@ function hms(sec) {
            : `${m}:${String(s).padStart(2,"0")}`;
 }
 
+/* ═══ ค้นหาความหมายใกล้เคียง (semantic) ═══
+   เวกเตอร์ของทุกช่วงคำนวณไว้ล่วงหน้าแล้ว (embeddings.bin, int8)
+   ส่วนคำที่ผู้ใช้พิมพ์ ต้องแปลงเป็นเวกเตอร์ตอนนั้น จึงต้องโหลดโมเดลลงเบราว์เซอร์
+   ใช้โมเดลตัวเดียวกับตอนคำนวณล่วงหน้า ไม่งั้นเวกเตอร์อยู่คนละปริภูมิ เทียบกันไม่ได้ */
+const SEM_MODEL = "Xenova/paraphrase-multilingual-MiniLM-L12-v2";
+let SEM = null, SEM_PIPE = null, SEM_BUSY = false;
+const SEM_MAX = 40;
+
+function semSay(msg) { el("semStatus").innerHTML = msg; }
+
+async function semInit() {
+  if (SEM && SEM_PIPE) return true;
+  if (SEM_BUSY) return false;
+  SEM_BUSY = true;
+  el("semGo").disabled = true;
+  try {
+    if (!SEM) {
+      semSay("กำลังโหลดเวกเตอร์ของทุกช่วง…");
+      const [mRes, bRes] = await Promise.all([
+        fetch("embeddings.json", { cache: "force-cache" }),
+        fetch("embeddings.bin",  { cache: "force-cache" }),
+      ]);
+      if (!mRes.ok || !bRes.ok) throw new Error("ไม่พบไฟล์ embeddings");
+      const meta = await mRes.json();
+      SEM = { meta, v: new Int8Array(await bRes.arrayBuffer()) };
+      if (SEM.v.length !== meta.count * meta.dim) throw new Error("ขนาดไฟล์เวกเตอร์ไม่ตรงกับ metadata");
+    }
+    if (!FT) { semSay("กำลังโหลดคำบรรยาย…"); await ftLoad(); }
+    if (!SEM_PIPE) {
+      semSay("กำลังโหลดโมเดล AI ~120 MB — ครั้งแรกครั้งเดียว อาจใช้เวลาสักครู่…");
+      const { pipeline, env } = await import(
+        "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.7.6");
+      env.allowLocalModels = false;
+      SEM_PIPE = await pipeline("feature-extraction", SEM_MODEL, {
+        dtype: "q8",
+        progress_callback: p => {
+          if (p.status === "progress" && p.total)
+            semSay(`กำลังโหลดโมเดล AI… ${Math.round(p.progress)}%`);
+        },
+      });
+    }
+    return true;
+  } catch (e) {
+    semSay(`โหลดไม่สำเร็จ: ${esc(e.message)} — ลองรีเฟรชหน้า หรือเช็คว่าอินเทอร์เน็ตเปิดอยู่`);
+    return false;
+  } finally {
+    SEM_BUSY = false;
+    el("semGo").disabled = false;
+  }
+}
+
+async function semSearch() {
+  const q = norm(el("qs").value);
+  if (q.length < 2) { semSay("พิมพ์อย่างน้อย 2 ตัวอักษร"); return; }
+  if (!(await semInit())) return;
+
+  semSay("กำลังเทียบความหมาย…");
+  const out = await SEM_PIPE(q, { pooling: "mean", normalize: true });
+  const qv = Float32Array.from(out.data);
+
+  const { count, dim, scale } = SEM.meta, V = SEM.v;
+  const top = [];
+  for (let b = 0; b < count; b++) {
+    let dot = 0, o = b * dim;
+    for (let d = 0; d < dim; d++) dot += qv[d] * V[o + d];
+    dot /= scale;                                   // คืนค่าจาก int8
+    if (top.length < SEM_MAX) {
+      top.push([dot, b]); top.sort((x, y) => x[0] - y[0]);
+    } else if (dot > top[0][0]) {
+      top[0] = [dot, b]; top.sort((x, y) => x[0] - y[0]);
+    }
+  }
+  semRender(top.reverse().filter(t => t[0] > 0.25));
+}
+
+function semRender(hits) {
+  const box = el("semResults");
+  if (!hits.length) {
+    semSay("");
+    box.innerHTML = `<div class="ft-more">ไม่เจอช่วงที่ความหมายใกล้เคียงพอ —
+      ลองอธิบายให้ยาวขึ้นหรือเจาะจงขึ้น เช่นแทนที่จะพิมพ์ "ทีม" ให้พิมพ์ "ทีมทะเลาะกันเอง ไม่คุยกัน"</div>`;
+    return;
+  }
+  semSay(`ช่วงที่ความหมายใกล้เคียงที่สุด <b style="color:var(--text)">${hits.length}</b> ช่วง (เรียงจากใกล้เคียงมากไปน้อย)`);
+  box.innerHTML = hits.map(([score, bi]) => {
+    const [ei, sec, txt] = FT.blocks[bi];
+    const [vid, title] = FT.eps[ei];
+    const g = guestOf(vid);
+    const pct = Math.round(Math.max(0, Math.min(1, score)) * 100);
+    return `<div class="ft-hit">
+      <div class="ft-when">
+        <a class="ft-jump" href="https://www.youtube.com/watch?v=${vid}&t=${sec}s"
+           target="_blank" rel="noopener">▶ ${hms(sec)}</a>
+        <span class="ft-thai">${thaiTime(hms(sec))}</span>
+        <span class="sem-score">ใกล้เคียง ${pct}%<span class="bar"><i style="width:${pct}%"></i></span></span>
+      </div>
+      <div class="ft-body">
+        <div class="ft-ep">${g ? `<b style="color:var(--muted)">${esc(g)}</b> · ` : ""}${esc(title)}</div>
+        <div class="ft-txt">${esc(txt.slice(0, 300))}${txt.length > 300 ? "…" : ""}</div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
 let ftTimer = null;
 async function ftSearch() {
   const q = norm(el("qt").value);
@@ -675,6 +807,8 @@ buildControls();
   el(id).addEventListener(id === "q" ? "input" : "change", render);
 });
 el("qt").addEventListener("input", ftSearch);
+el("semGo").addEventListener("click", semSearch);
+el("qs").addEventListener("keydown", e => { if (e.key === "Enter") semSearch(); });
 load();
 </script>
 </body>
