@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RECIPE Clip Finder — สำหรับ Internal Trainer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700;800&display=swap');
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  :root {
+    --bg:#07090f; --panel:#0d111a; --panel-2:#121826;
+    --line:rgba(255,255,255,.08); --line-soft:rgba(255,255,255,.04);
+    --text:#e8edf5; --muted:#8b9bb0; --dim:#4a5768;
+  }
+  body {
+    font-family:'Sarabun','Inter',sans-serif; background:var(--bg); color:var(--text);
+    padding:24px 16px 64px; line-height:1.5; -webkit-font-smoothing:antialiased;
+  }
+  .wrap { width:100%; max-width:1060px; margin:0 auto; }
+
+  /* ── HEADER ── */
+  header { display:flex; align-items:center; gap:14px; margin-bottom:6px; }
+  .wordmark { font-family:'Inter',sans-serif; font-size:26px; font-weight:900; letter-spacing:8px;
+    background:linear-gradient(135deg,#fff,#94a3b8); -webkit-background-clip:text;
+    -webkit-text-fill-color:transparent; background-clip:text; line-height:1.2; }
+  .tagline { font-size:11px; font-weight:500; letter-spacing:2px; text-transform:uppercase; color:#3d4a5c; }
+  .lede { font-size:13px; color:var(--muted); margin:14px 0 22px; }
+
+  /* ── NOTICE ── */
+  .notice { border-radius:12px; padding:14px 16px; font-size:13px; margin-bottom:22px; display:none; }
+  .notice strong { display:block; font-weight:700; margin-bottom:4px; }
+  .notice code { font-family:'Inter',ui-monospace,monospace; font-size:12px;
+    background:rgba(0,0,0,.35); padding:1px 6px; border-radius:4px; }
+  .notice.warn { background:rgba(245,158,11,.08); border:1px solid rgba(245,158,11,.3); color:#fde68a; }
+  .notice.err  { background:rgba(239,68,68,.08);  border:1px solid rgba(239,68,68,.3);  color:#fecaca; }
+  .notice.show { display:block; }
+
+  /* ── CONTROLS ── */
+  .controls { background:var(--panel); border:1px solid var(--line); border-radius:16px;
+    padding:18px; margin-bottom:22px; }
+  .field { margin-bottom:14px; }
+  .field:last-child { margin-bottom:0; }
+  label { display:block; font-size:11px; font-weight:700; letter-spacing:1.5px;
+    text-transform:uppercase; color:var(--dim); margin-bottom:7px; }
+  input[type=search], select {
+    width:100%; background:var(--panel-2); border:1px solid var(--line); border-radius:10px;
+    padding:12px 14px; color:var(--text); font-family:inherit; font-size:15px; outline:none;
+    appearance:none; -webkit-appearance:none;
+  }
+  input[type=search]:focus, select:focus { border-color:rgba(96,165,250,.55); box-shadow:0 0 0 3px rgba(59,130,246,.12); }
+  select { background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238b9bb0' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 14px center; padding-right:38px; }
+  optgroup { background:var(--bg); font-weight:700; }
+  option { background:var(--panel-2); color:var(--text); }
+
+  .pillar-row { display:flex; flex-wrap:wrap; gap:7px; }
+  .chip { border:1px solid var(--line); background:var(--panel-2); color:var(--muted);
+    border-radius:999px; padding:7px 13px; font-size:13px; font-weight:600; cursor:pointer;
+    font-family:inherit; transition:.15s; }
+  .chip:hover { border-color:rgba(255,255,255,.22); color:var(--text); }
+  .chip.on { color:#fff; }
+  .chip .dot { display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:7px; vertical-align:1px; }
+
+  .toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px;
+    flex-wrap:wrap; margin-bottom:14px; }
+  .count { font-size:13px; color:var(--muted); }
+  .count b { color:var(--text); font-weight:700; }
+  .qa-toggle { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--muted); cursor:pointer; }
+  .qa-toggle input { width:16px; height:16px; accent-color:#10b981; cursor:pointer; }
+
+  /* ── GROUPS ── */
+  .group { margin-bottom:26px; }
+  .group-head { display:flex; align-items:center; gap:9px; margin-bottom:12px;
+    padding-bottom:9px; border-bottom:1px solid var(--line-soft); }
+  .group-num { font-family:'Inter',sans-serif; font-size:11px; font-weight:800; opacity:.55; }
+  .group-th { font-size:15px; font-weight:700; }
+  .group-en { font-family:'Inter',sans-serif; font-size:11px; color:var(--dim); font-weight:500; }
+  .group-pill { font-family:'Inter',sans-serif; font-size:9px; font-weight:800; letter-spacing:1.5px;
+    text-transform:uppercase; padding:3px 8px; border-radius:5px; margin-left:auto; white-space:nowrap; }
+
+  /* ── CARDS ── */
+  .cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(288px,1fr)); gap:11px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-left-width:3px;
+    border-radius:12px; padding:15px; display:flex; flex-direction:column; gap:9px; }
+  .card.pending { opacity:.72; border-style:dashed; }
+  .card-top { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
+  .card-head { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .c-pillar { font-family:'Inter',sans-serif; font-size:9.5px; font-weight:800; letter-spacing:1.2px;
+    text-transform:uppercase; padding:4px 9px; border-radius:5px; white-space:nowrap; }
+  .c-ep { font-family:'Inter',sans-serif; font-size:10.5px; font-weight:800; color:var(--text);
+    background:var(--panel-2); border:1px solid var(--line); border-radius:5px; padding:3px 8px; white-space:nowrap; }
+  .card-head .badge { margin-left:auto; }
+  .meta .tag b { color:var(--text); font-weight:800; }
+  .guest { font-size:15px; font-weight:700; line-height:1.35; }
+  .ep { font-size:12px; color:var(--muted); margin-top:2px; }
+  .badge { font-size:10px; font-weight:700; padding:3px 8px; border-radius:5px; white-space:nowrap; flex-shrink:0; }
+  .badge.ok { background:rgba(16,185,129,.14); color:#6ee7b7; border:1px solid rgba(16,185,129,.3); }
+  .badge.wait { background:rgba(245,158,11,.12); color:#fcd34d; border:1px solid rgba(245,158,11,.28); }
+  .meta { display:flex; flex-wrap:wrap; gap:6px; }
+  .tag { font-family:'Inter',sans-serif; font-size:11px; font-weight:600; color:var(--muted);
+    background:var(--panel-2); border:1px solid var(--line-soft); border-radius:6px; padding:4px 9px; }
+  .note { font-size:13px; color:var(--muted); line-height:1.5; }
+  .credit { font-size:11px; color:var(--dim); }
+  .go { display:flex; align-items:center; justify-content:center; gap:7px; margin-top:auto;
+    text-decoration:none; border-radius:9px; padding:10px 14px; font-size:13.5px; font-weight:700;
+    border:1px solid; transition:.15s; }
+  .go:hover { filter:brightness(1.25); }
+  .go.dead { opacity:.4; pointer-events:none; }
+
+  /* ── EMPTY ── */
+  .empty { border:1px dashed var(--line); border-radius:14px; padding:44px 22px; text-align:center; }
+  .empty-h { font-size:19px; font-weight:800; color:#fca5a5; margin-bottom:8px; }
+  .empty-p { font-size:13.5px; color:var(--muted); max-width:460px; margin:0 auto; }
+
+  footer { margin-top:40px; padding-top:16px; border-top:1px solid var(--line-soft);
+    font-size:11px; color:#2b3746; letter-spacing:1.5px; text-transform:uppercase;
+    display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+
+  @media (max-width:560px) {
+    body { padding:18px 12px 48px; }
+    .wordmark { font-size:21px; letter-spacing:5px; }
+    .cards { grid-template-columns:1fr; }
+    .group-head { flex-wrap:wrap; row-gap:5px; }
+    .group-th { flex:1 1 100%; order:2; }
+    .group-en { order:3; }
+    .group-pill { order:1; margin-left:0; }
+    .group-num { order:0; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <svg width="40" height="40" viewBox="0 0 110 110" aria-hidden="true">
+      <circle cx="55" cy="55" r="54" fill="#0d1117"/>
+      <circle cx="55" cy="55" r="45" fill="none" stroke="#3b82f6" stroke-width="10" stroke-linecap="round" stroke-dasharray="39 8.7" transform="rotate(-90 55 55)" opacity=".92"/>
+      <circle cx="55" cy="55" r="45" fill="none" stroke="#fbbf24" stroke-width="10" stroke-linecap="round" stroke-dasharray="39 8.7" stroke-dashoffset="-47.7" transform="rotate(-90 55 55)" opacity=".92"/>
+      <circle cx="55" cy="55" r="45" fill="none" stroke="#f97316" stroke-width="10" stroke-linecap="round" stroke-dasharray="39 8.7" stroke-dashoffset="-95.4" transform="rotate(-90 55 55)" opacity=".92"/>
+      <circle cx="55" cy="55" r="45" fill="none" stroke="#10b981" stroke-width="10" stroke-linecap="round" stroke-dasharray="39 8.7" stroke-dashoffset="-143.1" transform="rotate(-90 55 55)" opacity=".92"/>
+      <circle cx="55" cy="55" r="45" fill="none" stroke="#8b5cf6" stroke-width="10" stroke-linecap="round" stroke-dasharray="39 8.7" stroke-dashoffset="-190.8" transform="rotate(-90 55 55)" opacity=".92"/>
+      <circle cx="55" cy="55" r="45" fill="none" stroke="#06b6d4" stroke-width="10" stroke-linecap="round" stroke-dasharray="39 8.7" stroke-dashoffset="-238.5" transform="rotate(-90 55 55)" opacity=".92"/>
+      <circle cx="55" cy="55" r="32" fill="#07090f"/>
+      <text x="55" y="62" text-anchor="middle" font-family="Inter,sans-serif" font-weight="900" font-size="22" fill="#fff" opacity=".95">R</text>
+    </svg>
+    <div>
+      <div class="wordmark">RECIPE</div>
+      <div class="tagline">Clip Finder · Leadership Secrets</div>
+    </div>
+  </header>
+
+  <p class="lede">เลือกหัวข้อที่ต้องบรรยาย แล้วดูว่าแขกรับเชิญคนไหนพูดถึงเรื่องนี้ไว้ที่นาทีไหน — กดปุ่มเพื่อเปิด YouTube ที่จุดนั้นได้ทันที</p>
+
+  <div id="notice" class="notice"></div>
+
+  <div class="controls">
+    <div class="field">
+      <label for="q">ค้นหา — skill / competency / pillar / ชื่อแขก / EP</label>
+      <input type="search" id="q" placeholder="เช่น Change Management, Catalyst, ครบเครื่องเรื่องคน, EP 32…" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="comp">เลือก Competency (33 ข้อ)</label>
+      <select id="comp"></select>
+    </div>
+    <div class="field">
+      <label>กรองตาม Pillar</label>
+      <div class="pillar-row" id="pillars"></div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <div class="count" id="count"></div>
+    <label class="qa-toggle"><input type="checkbox" id="qaOnly"> แสดงเฉพาะคลิปที่ตรวจสอบแล้ว</label>
+  </div>
+
+  <div id="results"></div>
+
+  <footer>
+    <span>RECIPE Leadership Framework © 2026</span>
+    <span id="stamp"></span>
+  </footer>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════
+   CONFIG — ใส่ลิงก์ CSV ของ Google Sheet ตรงนี้
+   วิธีหา: ใน Google Sheet → File → Share → Publish to web
+           → เลือกชีท → รูปแบบ "Comma-separated values (.csv)" → Publish → คัดลอกลิงก์
+   ══════════════════════════════════════════════════════════════ */
+const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQMGFtEbTDjZWuKkMReFlenBeUJtxLEPcmtS-68Dv3tjn78yawgGIvmkCRuanFBvK0YJzwVJrXhcXb2/pub?output=csv";
+/* ════════════════════════════════════════════════════════════ */
+
+/* ─── TAXONOMY: 33 principles / 6 pillars (ตรงกับ RECIPE_Full_Infographic_WithPrinciples) ─── */
+const PILLARS = [
+  { key:"R",  letter:"R", en:"Resilient",       th:"ยืนหยัด อดทน",        color:"#3b82f6", accent:"#60a5fa", tint:"rgba(59,130,246,.12)" },
+  { key:"E1", letter:"E", en:"Excellence",      th:"ทำจนยอดเยี่ยม",       color:"#f59e0b", accent:"#fbbf24", tint:"rgba(245,158,11,.12)" },
+  { key:"C",  letter:"C", en:"Catalyst",        th:"เร่งเปลี่ยนแปลงไว",   color:"#f97316", accent:"#fb923c", tint:"rgba(249,115,22,.12)" },
+  { key:"I",  letter:"I", en:"Impact",          th:"เข้าใจผลกระทบ",       color:"#10b981", accent:"#34d399", tint:"rgba(16,185,129,.12)" },
+  { key:"P",  letter:"P", en:"People & Profit", th:"ครบเครื่องเรื่องคน",  color:"#8b5cf6", accent:"#a78bfa", tint:"rgba(139,92,246,.12)" },
+  { key:"E2", letter:"E", en:"Elevate",         th:"ยกตัวตนไปอีกขั้น",    color:"#06b6d4", accent:"#22d3ee", tint:"rgba(6,182,212,.12)" },
+];
+
+const COMPETENCIES = [
+  { n:1,  p:"R",  th:"การรับมือกับความไม่แน่นอน",              en:"Managing Uncertainty" },
+  { n:2,  p:"R",  th:"ท้อเป็นได้แค่ถ่าน ผ่านถึงจะเป็นเพชร",    en:"Emotional Resilience" },
+  { n:3,  p:"R",  th:"การฟื้นตัวจากความล้มเหลว",                en:"Bouncing Back from Failure" },
+  { n:4,  p:"R",  th:"การบริหารพลังงานและสมดุลชีวิต",          en:"Energy & Balance Management" },
+  { n:5,  p:"R",  th:"การนำทีมผ่านวิกฤต",                       en:"Crisis Leadership" },
+  { n:6,  p:"E1", th:"พระเจ้าอยู่ในรายละเอียด",                 en:"High-Standard Setting" },
+  { n:7,  p:"E1", th:"ทำให้เยี่ยม เดี๋ยวคนจะมาเยี่ยมเราเอง",   en:"Retail is Detail" },
+  { n:8,  p:"E1", th:"ตัวอย่างที่ดีมีค่ามากกว่าคำสอน",          en:"Leader IS the Culture + Trustworthy" },
+  { n:9,  p:"E1", th:"Process Improvement",                       en:"Operational Excellence" },
+  { n:10, p:"C",  th:"เชื่อทุกคน รอไม่มีใคร",                    en:"Change Management" },
+  { n:11, p:"C",  th:"Digital Transformation & AI",               en:"AI Adoption" },
+  { n:12, p:"C",  th:"โน้มน้าวได้ถึงนำได้",                      en:"Inspiring Communication" },
+  { n:13, p:"C",  th:"ความชัดเจน คือ พลัง",                      en:"Clarity is Power" },
+  { n:14, p:"C",  th:"ทลาย Silo สร้าง Collaboration",             en:"Breaking Silos" },
+  { n:15, p:"C",  th:"ท้าทายสถานะเดิม",                          en:"Question the Norm" },
+  { n:16, p:"I",  th:"Vision-to-Execution",                       en:"Vision into Results" },
+  { n:17, p:"I",  th:"การคิดเชิงกลยุทธ์",                        en:"Strategic Thinking & Data" },
+  { n:18, p:"I",  th:"สื่อสารอย่างชัดเจนมีพลัง",                 en:"Communicate with Clarity" },
+  { n:19, p:"I",  th:"Sense of Ownership",                        en:"Entrepreneurial Mindset" },
+  { n:20, p:"I",  th:"นับถั่ว",                                   en:"Cost Saving & Leadership" },
+  { n:21, p:"I",  th:"Less is More",                              en:"Lean & Optimize Productivity" },
+  { n:22, p:"I",  th:"ผลกระทบที่ยั่งยืน",                        en:"Sustainable Impact Creation" },
+  { n:23, p:"P",  th:"ลูกน้องเก่งกว่า ชนะเสมอ",                  en:"Talent Acquisition" },
+  { n:24, p:"P",  th:"ได้ดีต้องมีพี่เลี้ยง",                     en:"Leader as Coach" },
+  { n:25, p:"P",  th:"ปลดปล่อย \"เดวิด\" ในตัวลูกน้อง",          en:"Unlock Potential" },
+  { n:26, p:"P",  th:"ฟังแต่ไม่ได้ยิน",                          en:"Active Listening" },
+  { n:27, p:"P",  th:"บันไดหิน vs พระพุทธรูปหิน",                en:"Constructive Feedback" },
+  { n:28, p:"P",  th:"รักษาคนเก่ง",                               en:"Talent Retention" },
+  { n:29, p:"P",  th:"ความสวยงามของความหลากหลาย",                en:"Diversity & Generation Gap" },
+  { n:30, p:"E2", th:"How Leaders Learn",                         en:"Lifelong Learning & Multi-Skills" },
+  { n:31, p:"E2", th:"สร้างองค์กรแห่งการเรียนรู้",               en:"Building a Learning Culture" },
+  { n:32, p:"E2", th:"ถ่ายทอดความรู้และประสบการณ์",              en:"Knowledge Transfer & Management" },
+  { n:33, p:"E2", th:"คายตะขาบ",                                  en:"Leadership Pipeline & Succession" },
+];
+
+const pillarOf = k => PILLARS.find(p => p.key === k);
+const compOf   = n => COMPETENCIES.find(c => c.n === n);
+
+/* ─── CSV PARSER (รองรับ quoted field, comma และ newline ในเซลล์) ─── */
+function parseCSV(text) {
+  const rows = []; let row = [], cell = "", q = false;
+  text = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (q) {
+      if (ch === '"') { if (text[i+1] === '"') { cell += '"'; i++; } else q = false; }
+      else cell += ch;
+    } else if (ch === '"') q = true;
+    else if (ch === ",") { row.push(cell); cell = ""; }
+    else if (ch === "\n") { row.push(cell); rows.push(row); row = []; cell = ""; }
+    else cell += ch;
+  }
+  if (cell !== "" || row.length) { row.push(cell); rows.push(row); }
+  return rows.filter(r => r.some(c => c.trim() !== ""));
+}
+
+/* ─── HELPERS ─── */
+const norm = s => (s || "").toString().trim();
+
+// "12:45" / "1:02:30" / "745" → วินาที ; คืน null ถ้าอ่านไม่ออก
+function toSeconds(ts) {
+  const s = norm(ts); if (!s) return null;
+  const parts = s.split(":").map(x => x.trim());
+  if (parts.some(x => x === "" || !/^\d+$/.test(x))) return null;
+  const nums = parts.map(Number);
+  if (nums.length === 1) return nums[0];
+  if (nums.length === 2) return nums[0]*60 + nums[1];
+  if (nums.length === 3) return nums[0]*3600 + nums[1]*60 + nums[2];
+  return null;
+}
+
+// ดึง video id จาก URL หลายรูปแบบ ; คืน null ถ้าไม่ใช่ลิงก์ YouTube ที่อ่านได้
+function videoId(url) {
+  const u = norm(url); if (!u) return null;
+  const m = u.match(/(?:youtu\.be\/|[?&]v=|\/embed\/|\/live\/|\/shorts\/)([A-Za-z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+
+function jumpUrl(url, ts) {
+  const id = videoId(url), sec = toSeconds(ts);
+  if (!id || sec === null) return null;
+  return `https://www.youtube.com/watch?v=${id}&t=${sec}s`;
+}
+
+const isQAd = s => /ตรวจสอบแล้ว|^(qa|ok|done|pass|approved|yes|y|true)$/i.test(norm(s));
+
+/* Google Sheets ชอบแปลงค่า "24:54" (24 นาที 54 วิ) เป็น "24:54:00" (24 ชม. 54 นาที) เอง
+   ถ้าไม่ได้ตั้ง format ช่องเป็น Plain text ไว้ก่อน
+   ตรงนี้ดักคืนให้: 3 ส่วน + วินาทีเป็น 00 + ชั่วโมง >= 2 → คลิปไม่มีทางยาวขนาดนั้น จึงเป็น mm:ss แน่นอน
+   (ค่าอย่าง 1:04:30 หรือ 1:14:00 ปล่อยไว้ เพราะเป็นชั่วโมงจริงได้) */
+function normTs(ts) {
+  const s = norm(ts), p = s.split(":");
+  if (p.length === 3 && /^\d+$/.test(p[0].trim()) && p[2].trim() === "00" && Number(p[0]) >= 2) {
+    return { ts: `${Number(p[0])}:${p[1].trim()}`, fixed: true };
+  }
+  return { ts: s, fixed: false };
+}
+
+/* ─── โหลดข้อมูล ─── */
+const el = id => document.getElementById(id);
+let ROWS = [];
+let TS_FIXED = 0;   // นับแถวที่ต้องดัด timestamp คืนจากที่ Sheets แปลงผิด
+
+function notify(kind, html) {
+  const n = el("notice");
+  n.className = "notice show " + kind;
+  n.innerHTML = html;
+}
+
+function mapRow(header, cells) {
+  const g = name => {
+    const i = header.findIndex(h => h === name.toLowerCase());
+    return i === -1 ? "" : norm(cells[i]);
+  };
+  const nRaw = g("competency no.") || g("competency no") || g("competency number") || g("no.") || g("no");
+  let n = parseInt(nRaw, 10);
+  if (!Number.isInteger(n) || n < 1 || n > 33) {
+    // fallback: จับคู่จากชื่อ competency ถ้าเลขไม่ถูกกรอก
+    const name = g("competency").toLowerCase();
+    const hit = COMPETENCIES.find(c => c.th.toLowerCase() === name || c.en.toLowerCase() === name);
+    n = hit ? hit.n : null;
+  }
+  const t = normTs(g("timestamp start") || g("timestamp"));
+  if (t.fixed) TS_FIXED++;
+  return {
+    n,
+    guest:  g("guest name") || g("guest"),
+    ep:     g("episode no./title") || g("episode") || g("ep"),
+    url:    g("youtube url") || g("url"),
+    ts:     t.ts,
+    len:    g("suggested length") || g("length"),
+    note:   g("short context note") || g("note"),
+    qa:     g("qa status") || g("qa"),
+    by:     g("tagged by"),
+    qaBy:   g("qa by"),
+  };
+}
+
+async function load() {
+  if (!SHEET_CSV_URL) {
+    notify("warn", `<strong>ยังไม่ได้เชื่อมกับ Google Sheet</strong>
+      เปิดไฟล์ <code>index.html</code> แล้วใส่ลิงก์ CSV ของชีทในตัวแปร <code>SHEET_CSV_URL</code> (บรรทัดบนสุดของ script)
+      — ตอนนี้หน้านี้จะยังไม่มีข้อมูลคลิปแสดง`);
+    render();
+    return;
+  }
+  try {
+    const res = await fetch(SHEET_CSV_URL, { cache: "no-store" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const rows = parseCSV(await res.text());
+    if (rows.length < 2) { render(); return; }
+    const header = rows[0].map(h => norm(h).toLowerCase());
+    TS_FIXED = 0;
+    ROWS = rows.slice(1).map(r => mapRow(header, r)).filter(r => r.n && r.guest);
+    el("stamp").textContent = "ข้อมูล " + ROWS.length + " รายการ";
+    if (TS_FIXED) {
+      notify("warn", `<strong>Google Sheet แปลง timestamp ผิด ${TS_FIXED} แถว — หน้านี้ดัดคืนให้ชั่วคราวแล้ว</strong>
+        ในชีทเก็บค่าเป็น <code>24:54:00</code> (24 ชั่วโมง) ทั้งที่ควรเป็น <code>24:54</code> (24 นาที)
+        เพราะ Sheets เดาว่าช่องนี้เป็นค่าเวลา<br>
+        <b>แก้ที่ต้นทาง:</b> ในชีท เลือกทั้งคอลัมน์ <code>Timestamp Start</code> →
+        Format → Number → <b>Plain text</b> → แล้ววางข้อมูลใหม่อีกครั้ง
+        (ถ้าไม่แก้ ค่าที่กำกวมบางแบบ เช่น <code>1:04:00</code> จะยังผิดอยู่ เพราะดัดคืนอัตโนมัติไม่ได้)`);
+    }
+  } catch (e) {
+    notify("err", `<strong>โหลดข้อมูลจาก Google Sheet ไม่สำเร็จ</strong>
+      ${e.message} — ตรวจว่าชีท publish to web เป็น CSV แล้วและลิงก์ถูกต้อง
+      หน้านี้จะไม่แสดงข้อมูลใดๆ จนกว่าจะโหลดได้ (ไม่มีการเดาข้อมูลแทน)`);
+  }
+  render();
+}
+
+/* ─── UI: สร้าง dropdown + chips ─── */
+function buildControls() {
+  const sel = el("comp");
+  sel.innerHTML = `<option value="">— ทุก competency —</option>`;
+  PILLARS.forEach(p => {
+    const og = document.createElement("optgroup");
+    og.label = `${p.letter} · ${p.en} — ${p.th}`;
+    COMPETENCIES.filter(c => c.p === p.key).forEach(c => {
+      const o = document.createElement("option");
+      o.value = c.n;
+      o.textContent = `${String(c.n).padStart(2,"0")} · ${c.th} (${c.en})`;
+      og.appendChild(o);
+    });
+    sel.appendChild(og);
+  });
+
+  const box = el("pillars");
+  PILLARS.forEach(p => {
+    const b = document.createElement("button");
+    b.className = "chip"; b.type = "button"; b.dataset.k = p.key;
+    b.innerHTML = `<span class="dot" style="background:${p.color}"></span>${p.letter} · ${p.en}`;
+    b.onclick = () => {
+      const on = b.classList.toggle("on");
+      b.style.background = on ? p.tint : "";
+      b.style.borderColor = on ? p.color : "";
+      render();
+    };
+    box.appendChild(b);
+  });
+}
+
+const activePillars = () =>
+  [...document.querySelectorAll(".chip.on")].map(b => b.dataset.k);
+
+/* ─── RENDER ─── */
+function render() {
+  const q = norm(el("q").value).toLowerCase();
+  const pick = el("comp").value ? parseInt(el("comp").value, 10) : null;
+  const pk = activePillars();
+  const qaOnly = el("qaOnly").checked;
+
+  let list = ROWS.slice();
+  if (pick) list = list.filter(r => r.n === pick);
+  if (pk.length) list = list.filter(r => pk.includes(compOf(r.n).p));
+  if (qaOnly) list = list.filter(r => isQAd(r.qa));
+  if (q) list = list.filter(r => {
+    const c = compOf(r.n), p = pillarOf(c.p);
+    // ค้นได้ทั้ง: ชื่อ competency (ไทย/อังกฤษ/เลข), ชื่อ pillar (ตัวอักษร/อังกฤษ/ไทย), แขก, EP, โน้ต
+    return [r.guest, r.ep, r.note, c.th, c.en, String(c.n),
+            p.letter, p.en, p.th, p.key]
+      .join(" ").toLowerCase().includes(q);
+  });
+
+  const out = el("results");
+  el("count").innerHTML = `พบ <b>${list.length}</b> คลิป`;
+
+  if (!list.length) {
+    out.innerHTML = `<div class="empty">
+      <div class="empty-h">ไม่มีข้อมูล</div>
+      <div class="empty-p">ยังไม่มีคลิปที่ตรงกับเงื่อนไขนี้ในฐานข้อมูล —
+        ระบบแสดงเฉพาะสิ่งที่ทีมงาน tag ไว้จริงในชีทเท่านั้น ไม่มีการเดาหรือแนะนำคลิปแทน</div>
+    </div>`;
+    return;
+  }
+
+  // จัดกลุ่มตาม competency, เรียงตามเลข principle, QA แล้วขึ้นก่อน
+  const byComp = new Map();
+  list.forEach(r => { if (!byComp.has(r.n)) byComp.set(r.n, []); byComp.get(r.n).push(r); });
+
+  out.innerHTML = [...byComp.keys()].sort((a,b) => a-b).map(n => {
+    const c = compOf(n), p = pillarOf(c.p);
+    const items = byComp.get(n).sort((a,b) => (isQAd(b.qa)?1:0) - (isQAd(a.qa)?1:0));
+    return `<section class="group">
+      <div class="group-head" style="border-color:${p.color}22">
+        <span class="group-num" style="color:${p.accent}">${String(n).padStart(2,"0")}</span>
+        <span class="group-th">${esc(c.th)}</span>
+        <span class="group-en">${esc(c.en)}</span>
+        <span class="group-pill" style="background:${p.tint};color:${p.accent}">${p.letter} · ${esc(p.en)}</span>
+      </div>
+      <div class="cards">${items.map(r => card(r, p)).join("")}</div>
+    </section>`;
+  }).join("");
+}
+
+// "EP 32 — ชื่อตอน" → "EP 32" (ถ้าไม่มีเลข EP คืนค่าว่าง)
+function epNo(ep) {
+  const m = (ep || "").match(/EP\.?\s*(\d+)/i);
+  return m ? `EP ${m[1]}` : "";
+}
+
+// "12:45" → "12 นาที 45 วินาที" | "1:04:30" → "1 ชม. 4 นาที 30 วินาที"
+function thaiTime(ts) {
+  const p = (ts || "").split(":");
+  if (!p.length || p.some(x => !/^\d+$/.test(x.trim()))) return "";
+  const n = p.map(Number);
+  if (n.length === 2) return `${n[0]} นาที ${n[1]} วินาที`;
+  if (n.length === 3) return `${n[0]} ชม. ${n[1]} นาที ${n[2]} วินาที`;
+  return "";
+}
+
+function card(r, p) {
+  const ok = isQAd(r.qa);
+  const link = jumpUrl(r.url, r.ts);
+  const th = thaiTime(r.ts);
+  const meta = [
+    r.ts  ? `<span class="tag">⏱ นาทีที่ <b>${esc(r.ts)}</b>${th ? ` · ${th}` : ""}</span>` : "",
+    r.len ? `<span class="tag">▶ ยาว ${esc(r.len)}</span>` : "",
+  ].join("");
+  const credit = [
+    r.by   ? `tag: ${esc(r.by)}`   : "",
+    r.qaBy ? `QA: ${esc(r.qaBy)}`  : "",
+  ].filter(Boolean).join(" · ");
+  const ep = epNo(r.ep);
+
+  return `<article class="card ${ok ? "" : "pending"}" style="border-left-color:${p.color}">
+    <div class="card-head">
+      <span class="c-pillar" style="background:${p.tint};color:${p.accent}">${p.letter} · ${esc(p.en)}</span>
+      ${ep ? `<span class="c-ep">${esc(ep)}</span>` : ""}
+      <span class="badge ${ok ? "ok" : "wait"}">${ok ? "✓ ตรวจสอบแล้ว" : "⏳ รอตรวจสอบ"}</span>
+    </div>
+    <div>
+      <div class="guest">${esc(r.guest)}</div>
+      ${r.ep ? `<div class="ep">${esc(r.ep)}</div>` : ""}
+    </div>
+    ${meta ? `<div class="meta">${meta}</div>` : ""}
+    ${r.note ? `<div class="note">${esc(r.note)}</div>` : ""}
+    ${credit ? `<div class="credit">${credit}</div>` : ""}
+    ${link
+      ? `<a class="go" href="${link}" target="_blank" rel="noopener"
+           style="background:${p.tint};border-color:${p.color}55;color:${p.accent}">▶ เปิดคลิปที่นาทีนี้</a>`
+      : `<span class="go dead" style="border-color:var(--line);color:var(--muted)">ลิงก์/timestamp ไม่ครบ</span>`}
+  </article>`;
+}
+
+function esc(s) {
+  return (s || "").toString().replace(/[&<>"']/g,
+    m => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[m]));
+}
+
+/* ─── INIT ─── */
+buildControls();
+["q","comp","qaOnly"].forEach(id => {
+  el(id).addEventListener(id === "q" ? "input" : "change", render);
+});
+load();
+</script>
+</body>
+</html>
