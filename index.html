@@ -196,9 +196,11 @@
   <section class="ft">
     <div class="ft-head">
       <span class="ft-title">🔎 ค้นหาจากคำพูดในคลิป</span>
-      <span class="ft-sub">พิมพ์คำ วลี หรือประโยคที่แขกพูด — ค้นทั้ง 78 ตอน แล้วกระโดดไปวินาทีนั้นได้เลย</span>
+      <span class="ft-sub">พิมพ์คำ วลี หรือประโยคที่แขกพูด — ค้นทั้ง 78 ตอน แล้วกระโดดไปวินาทีนั้นได้เลย<br>
+        ใส่ <b style="color:var(--muted)">comma (,)</b> คั่นเพื่อหาช่วงที่มีครบทุกคำ เช่น
+        <code style="font-family:'Inter',monospace">change, culture</code></span>
     </div>
-    <input type="search" id="qt" placeholder="เช่น แม่น้ำเปลี่ยนทิศ, ลูกน้องลาออก, ขาดทุน…" autocomplete="off">
+    <input type="search" id="qt" placeholder="เช่น แม่น้ำเปลี่ยนทิศ  หรือ  change, culture" autocomplete="off">
     <div class="ft-status" id="ftStatus"></div>
     <div id="ftResults"></div>
   </section>
@@ -567,30 +569,39 @@ function ftRender(q) {
   if (!q) { box.innerHTML = ""; st.textContent = ""; return; }
   if (!FT) return;
 
-  const needle = q.toLowerCase();
+  // คั่นด้วย comma = ต้องมีครบทุกคำในช่วงเดียวกัน (AND)
+  const terms = q.split(",").map(s => norm(s).toLowerCase()).filter(Boolean);
+  if (!terms.length) { box.innerHTML = ""; st.textContent = ""; return; }
+
   const hits = [];
   for (const [ei, sec, txt] of FT.blocks) {
-    const i = txt.toLowerCase().indexOf(needle);
-    if (i !== -1) hits.push([ei, sec, txt, i]);
+    const low = txt.toLowerCase();
+    const pos = terms.map(t => low.indexOf(t));
+    if (pos.some(p => p === -1)) continue;         // ขาดคำใดคำหนึ่ง → ตัดทิ้ง
+    hits.push([ei, sec, txt, Math.min(...pos)]);
     if (hits.length > 500) break;
   }
 
+  const label = terms.length > 1
+    ? `ช่วงที่มีครบทั้ง ${terms.length} คำ (${terms.map(esc).join(" + ")})`
+    : "ช่วงที่มีคำนี้";
   st.innerHTML = hits.length
-    ? `พบ <b style="color:var(--text)">${hits.length}</b> ช่วงที่มีคำนี้`
+    ? `พบ <b style="color:var(--text)">${hits.length}</b> ${label}`
     : "";
 
   if (!hits.length) {
-    box.innerHTML = `<div class="ft-more">ไม่พบคำนี้ในคำบรรยายของตอนไหนเลย —
-      ลองคำที่สั้นลงหรือสะกดแบบอื่น (คำบรรยายเป็นระบบถอดเสียงอัตโนมัติ จึงสะกดเพี้ยนได้)</div>`;
+    box.innerHTML = `<div class="ft-more">ไม่พบ${terms.length > 1
+      ? "ช่วงที่มีครบทุกคำที่ระบุ — ลองลดจำนวนคำลง หรือใช้คำที่สั้นกว่านี้"
+      : "คำนี้ในคำบรรยายของตอนไหนเลย — ลองคำที่สั้นลงหรือสะกดแบบอื่น"}
+      (คำบรรยายเป็นระบบถอดเสียงอัตโนมัติ จึงสะกดเพี้ยนได้)</div>`;
     return;
   }
 
   box.innerHTML = hits.slice(0, FT_MAX).map(([ei, sec, txt, i]) => {
     const [vid, title] = FT.eps[ei];
-    const from = Math.max(0, i - 70), to = Math.min(txt.length, i + needle.length + 130);
-    const snip = (from ? "…" : "") + esc(txt.slice(from, i)) +
-      "<mark>" + esc(txt.substr(i, needle.length)) + "</mark>" +
-      esc(txt.slice(i + needle.length, to)) + (to < txt.length ? "…" : "");
+    const from = Math.max(0, i - 70), to = Math.min(txt.length, i + 220);
+    const snip = (from ? "…" : "") + hilite(txt.slice(from, to), terms) +
+      (to < txt.length ? "…" : "");
     const g = guestOf(vid);
     return `<div class="ft-hit">
       <div class="ft-when">
@@ -605,6 +616,34 @@ function ftRender(q) {
     </div>`;
   }).join("") + (hits.length > FT_MAX
     ? `<div class="ft-more">แสดง ${FT_MAX} จาก ${hits.length} ช่วง — พิมพ์ให้เจาะจงขึ้นเพื่อลดผลลัพธ์</div>` : "");
+}
+
+// ไฮไลต์ทุกคำที่ค้น (escape ก่อนเสมอ แล้วค่อยแทรก <mark>)
+function hilite(text, terms) {
+  const low = text.toLowerCase();
+  // 1) หาทุกช่วงที่ตรงกับแต่ละคำ
+  const spans = [];
+  terms.forEach(t => {
+    if (!t) return;
+    let i = low.indexOf(t);
+    while (i !== -1) { spans.push([i, i + t.length]); i = low.indexOf(t, i + t.length); }
+  });
+  if (!spans.length) return esc(text);
+  // 2) รวมช่วงที่ทับกัน
+  spans.sort((a, b) => a[0] - b[0]);
+  const merged = [spans[0]];
+  for (const [s, e] of spans.slice(1)) {
+    const last = merged[merged.length - 1];
+    if (s <= last[1]) last[1] = Math.max(last[1], e);
+    else merged.push([s, e]);
+  }
+  // 3) escape ทีละส่วน แล้วครอบ <mark> เฉพาะช่วงที่ตรง
+  let out = "", at = 0;
+  for (const [s, e] of merged) {
+    out += esc(text.slice(at, s)) + "<mark>" + esc(text.slice(s, e)) + "</mark>";
+    at = e;
+  }
+  return out + esc(text.slice(at));
 }
 
 function hms(sec) {
