@@ -70,6 +70,29 @@
   .qa-toggle { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--muted); cursor:pointer; }
   .qa-toggle input { width:16px; height:16px; accent-color:#10b981; cursor:pointer; }
 
+  /* ── FULL-TEXT SEARCH ── */
+  .ft { background:var(--panel); border:1px solid var(--line); border-radius:16px;
+    padding:18px; margin-bottom:22px; }
+  .ft-head { margin-bottom:11px; }
+  .ft-title { display:block; font-size:14px; font-weight:800; color:var(--text); }
+  .ft-sub { display:block; font-size:12px; color:var(--muted); margin-top:3px; line-height:1.5; }
+  .ft-status { font-size:12.5px; color:var(--muted); margin-top:10px; }
+  .ft-hit { border-top:1px solid var(--line-soft); padding:13px 0; display:flex; gap:12px;
+    align-items:flex-start; flex-wrap:wrap; }
+  .ft-when { display:flex; flex-direction:column; gap:5px; flex-shrink:0; min-width:104px; }
+  .ft-jump { display:inline-flex; align-items:center; justify-content:center; gap:5px;
+    text-decoration:none; font-family:'Inter',sans-serif; font-size:12.5px; font-weight:800;
+    background:rgba(59,130,246,.12); border:1px solid rgba(59,130,246,.4); color:#93c5fd;
+    border-radius:7px; padding:6px 10px; white-space:nowrap; }
+  .ft-jump:hover { filter:brightness(1.3); }
+  .ft-thai { font-size:10.5px; color:var(--dim); text-align:center; }
+  .ft-body { flex:1; min-width:210px; }
+  .ft-ep { font-size:12px; color:var(--muted); margin-bottom:4px; }
+  .ft-txt { font-size:13.5px; line-height:1.65; color:var(--text); }
+  .ft-txt mark { background:rgba(251,191,36,.28); color:#fde68a; border-radius:3px;
+    padding:1px 2px; font-weight:700; }
+  .ft-more { font-size:12.5px; color:var(--dim); padding-top:12px; }
+
   /* ── GROUPS ── */
   .group { margin-bottom:26px; }
   .group-head { display:flex; align-items:center; gap:9px; margin-bottom:12px;
@@ -169,6 +192,16 @@
       <div class="pillar-row" id="pillars"></div>
     </div>
   </div>
+
+  <section class="ft">
+    <div class="ft-head">
+      <span class="ft-title">🔎 ค้นหาจากคำพูดในคลิป</span>
+      <span class="ft-sub">พิมพ์คำ วลี หรือประโยคที่แขกพูด — ค้นทั้ง 78 ตอน แล้วกระโดดไปวินาทีนั้นได้เลย</span>
+    </div>
+    <input type="search" id="qt" placeholder="เช่น แม่น้ำเปลี่ยนทิศ, ลูกน้องลาออก, ขาดทุน…" autocomplete="off">
+    <div class="ft-status" id="ftStatus"></div>
+    <div id="ftResults"></div>
+  </section>
 
   <div class="toolbar">
     <div class="count" id="count"></div>
@@ -358,14 +391,7 @@ async function load() {
     TS_FIXED = 0;
     ROWS = rows.slice(1).map(r => mapRow(header, r)).filter(r => r.n && r.guest);
     el("stamp").textContent = "ข้อมูล " + ROWS.length + " รายการ";
-    if (TS_FIXED) {
-      notify("warn", `<strong>Google Sheet แปลง timestamp ผิด ${TS_FIXED} แถว — หน้านี้ดัดคืนให้ชั่วคราวแล้ว</strong>
-        ในชีทเก็บค่าเป็น <code>24:54:00</code> (24 ชั่วโมง) ทั้งที่ควรเป็น <code>24:54</code> (24 นาที)
-        เพราะ Sheets เดาว่าช่องนี้เป็นค่าเวลา<br>
-        <b>แก้ที่ต้นทาง:</b> ในชีท เลือกทั้งคอลัมน์ <code>Timestamp Start</code> →
-        Format → Number → <b>Plain text</b> → แล้ววางข้อมูลใหม่อีกครั้ง
-        (ถ้าไม่แก้ ค่าที่กำกวมบางแบบ เช่น <code>1:04:00</code> จะยังผิดอยู่ เพราะดัดคืนอัตโนมัติไม่ได้)`);
-    }
+    // timestamp ที่ Sheets แปลงผิดจะถูกดัดคืนเงียบๆ ใน normTs() — ดูจำนวนได้ที่ตัวแปร TS_FIXED ใน console
   } catch (e) {
     notify("err", `<strong>โหลดข้อมูลจาก Google Sheet ไม่สำเร็จ</strong>
       ${e.message} — ตรวจว่าชีท publish to web เป็น CSV แล้วและลิงก์ถูกต้อง
@@ -508,6 +534,97 @@ function card(r, p) {
   </article>`;
 }
 
+/* ═══ ค้นหาจากคำพูดในคลิป (full-text) ═══
+   index มีขนาดใหญ่ (~2 MB หลังบีบอัด) จึงโหลดครั้งแรกตอนผู้ใช้ค้นจริงเท่านั้น
+   ไม่ถ่วงตอนเปิดหน้า */
+let FT = null, FT_LOADING = false;
+const FT_MAX = 60;   // แสดงผลสูงสุดกี่รายการ
+
+async function ftLoad() {
+  if (FT || FT_LOADING) return FT;
+  FT_LOADING = true;
+  el("ftStatus").textContent = "กำลังโหลดคำบรรยายทั้ง 78 ตอน… (ครั้งแรกครั้งเดียว)";
+  try {
+    const res = await fetch("transcript-index.json", { cache: "force-cache" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    FT = await res.json();
+  } catch (e) {
+    el("ftStatus").textContent = "โหลดคำบรรยายไม่สำเร็จ (" + e.message +
+      ") — ต้องมีไฟล์ transcript-index.json วางไว้ข้างๆ หน้านี้";
+  }
+  FT_LOADING = false;
+  return FT;
+}
+
+// หาชื่อแขกจากข้อมูล tag ที่โหลดมาแล้ว (ถ้ามี) เพื่อแสดงคู่กับชื่อตอน
+function guestOf(vid) {
+  const r = ROWS.find(x => (x.url || "").includes(vid));
+  return r && r.guest && r.guest !== "—" ? r.guest : "";
+}
+
+function ftRender(q) {
+  const box = el("ftResults"), st = el("ftStatus");
+  if (!q) { box.innerHTML = ""; st.textContent = ""; return; }
+  if (!FT) return;
+
+  const needle = q.toLowerCase();
+  const hits = [];
+  for (const [ei, sec, txt] of FT.blocks) {
+    const i = txt.toLowerCase().indexOf(needle);
+    if (i !== -1) hits.push([ei, sec, txt, i]);
+    if (hits.length > 500) break;
+  }
+
+  st.innerHTML = hits.length
+    ? `พบ <b style="color:var(--text)">${hits.length}</b> ช่วงที่มีคำนี้`
+    : "";
+
+  if (!hits.length) {
+    box.innerHTML = `<div class="ft-more">ไม่พบคำนี้ในคำบรรยายของตอนไหนเลย —
+      ลองคำที่สั้นลงหรือสะกดแบบอื่น (คำบรรยายเป็นระบบถอดเสียงอัตโนมัติ จึงสะกดเพี้ยนได้)</div>`;
+    return;
+  }
+
+  box.innerHTML = hits.slice(0, FT_MAX).map(([ei, sec, txt, i]) => {
+    const [vid, title] = FT.eps[ei];
+    const from = Math.max(0, i - 70), to = Math.min(txt.length, i + needle.length + 130);
+    const snip = (from ? "…" : "") + esc(txt.slice(from, i)) +
+      "<mark>" + esc(txt.substr(i, needle.length)) + "</mark>" +
+      esc(txt.slice(i + needle.length, to)) + (to < txt.length ? "…" : "");
+    const g = guestOf(vid);
+    return `<div class="ft-hit">
+      <div class="ft-when">
+        <a class="ft-jump" href="https://www.youtube.com/watch?v=${vid}&t=${sec}s"
+           target="_blank" rel="noopener">▶ ${hms(sec)}</a>
+        <span class="ft-thai">${thaiTime(hms(sec))}</span>
+      </div>
+      <div class="ft-body">
+        <div class="ft-ep">${g ? `<b style="color:var(--muted)">${esc(g)}</b> · ` : ""}${esc(title)}</div>
+        <div class="ft-txt">${snip}</div>
+      </div>
+    </div>`;
+  }).join("") + (hits.length > FT_MAX
+    ? `<div class="ft-more">แสดง ${FT_MAX} จาก ${hits.length} ช่วง — พิมพ์ให้เจาะจงขึ้นเพื่อลดผลลัพธ์</div>` : "");
+}
+
+function hms(sec) {
+  sec = Math.floor(sec);
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+  return h ? `${h}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`
+           : `${m}:${String(s).padStart(2,"0")}`;
+}
+
+let ftTimer = null;
+async function ftSearch() {
+  const q = norm(el("qt").value);
+  clearTimeout(ftTimer);
+  if (q.length < 2) { el("ftResults").innerHTML = ""; el("ftStatus").textContent = ""; return; }
+  ftTimer = setTimeout(async () => {
+    await ftLoad();
+    ftRender(q);
+  }, 250);
+}
+
 function esc(s) {
   return (s || "").toString().replace(/[&<>"']/g,
     m => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[m]));
@@ -518,6 +635,7 @@ buildControls();
 ["q","comp","qaOnly"].forEach(id => {
   el(id).addEventListener(id === "q" ? "input" : "change", render);
 });
+el("qt").addEventListener("input", ftSearch);
 load();
 </script>
 </body>
