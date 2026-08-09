@@ -37,15 +37,24 @@
   .notice.err  { background:rgba(239,68,68,.08);  border:1px solid rgba(239,68,68,.3);  color:#fecaca; }
   .notice.show { display:block; }
 
-  /* ── CONTROLS ── */
-  .controls { background:var(--panel); border:1px solid var(--line); border-radius:16px;
-    padding:18px; margin-bottom:22px; }
+  /* ── CONTROLS (Part 2) — โทนเขียวมรกต แยกจาก Part 1 ที่เป็นโทนม่วง ── */
+  .controls { background:linear-gradient(180deg,rgba(16,185,129,.07),rgba(16,185,129,.02));
+    border:1px solid rgba(16,185,129,.28); border-left:4px solid #10b981;
+    border-radius:16px; padding:18px; margin-bottom:22px; }
+  .controls input[type=search], .controls select {
+    background:rgba(3,26,16,.55); border-color:rgba(16,185,129,.25); }
+  .controls input[type=search]:focus, .controls select:focus {
+    border-color:rgba(52,211,153,.6); box-shadow:0 0 0 3px rgba(16,185,129,.14); }
+  .controls .chip { background:rgba(3,26,16,.45); border-color:rgba(16,185,129,.2); }
+  .controls label { color:rgba(110,231,183,.75); }
   .field { margin-bottom:14px; }
   .field:last-child { margin-bottom:0; }
   label { display:block; font-size:11px; font-weight:700; letter-spacing:1.5px;
     text-transform:uppercase; color:var(--dim); margin-bottom:7px; }
-  /* หัวข้อ Part 2 — ใหญ่ขึ้น 30% (11 → 14.3) และเป็นสีขาว */
-  .part2-label { font-size:14.3px; color:var(--text); margin-bottom:9px; }
+  /* หัวข้อ Part 2 — ขนาดเท่าหัวข้อ Part 1 (18.2px) สีขาว ไม่บังคับตัวพิมพ์ใหญ่ */
+  .part2-label { font-size:18.2px; font-weight:800; color:var(--text);
+    letter-spacing:0; text-transform:none; line-height:1.4; margin-bottom:11px; }
+  .controls .part2-label { color:var(--text); }
   input[type=search], select {
     width:100%; background:var(--panel-2); border:1px solid var(--line); border-radius:10px;
     padding:12px 14px; color:var(--text); font-family:inherit; font-size:15px; outline:none;
@@ -73,8 +82,13 @@
   .qa-toggle input { width:16px; height:16px; accent-color:#10b981; cursor:pointer; }
 
   /* ── FULL-TEXT SEARCH ── */
-  .ft { background:var(--panel); border:1px solid var(--line); border-radius:16px;
-    padding:18px; margin-bottom:22px; }
+  /* Part 1 — โทนม่วง แยกจาก Part 2 ที่เป็นโทนเขียว */
+  .ft { background:linear-gradient(180deg,rgba(139,92,246,.08),rgba(139,92,246,.02));
+    border:1px solid rgba(139,92,246,.28); border-left:4px solid #8b5cf6;
+    border-radius:16px; padding:18px; margin-bottom:22px; }
+  .ft > input[type=search] { background:rgba(16,6,34,.55); border-color:rgba(139,92,246,.28); }
+  .ft > input[type=search]:focus { border-color:rgba(167,139,250,.6);
+    box-shadow:0 0 0 3px rgba(139,92,246,.16); }
   .ft-head { margin-bottom:11px; }
   /* หัวข้อใหญ่ขึ้น 30% (14 → 18.2) ส่วนคำบรรยายคงขนาดเดิม */
   .ft-title { display:block; font-size:18.2px; font-weight:800; color:var(--text); line-height:1.4; }
@@ -83,6 +97,7 @@
     letter-spacing:1.5px; text-transform:uppercase; color:#c4b5fd; background:rgba(139,92,246,.16);
     border:1px solid rgba(139,92,246,.4); border-radius:6px; padding:2px 9px; margin-right:6px;
     vertical-align:2px; }
+  .part-tag.t2 { color:#6ee7b7; background:rgba(16,185,129,.16); border-color:rgba(16,185,129,.45); }
   .pane-tag { display:inline-block; font-family:'Inter',sans-serif; font-weight:900;
     color:#93c5fd; margin-right:2px; }
   .pane:nth-child(2) .pane-tag { color:#c4b5fd; }
@@ -104,11 +119,6 @@
   .ft-more { font-size:12.5px; color:var(--dim); padding-top:12px; }
   .sem-row { display:flex; gap:9px; align-items:stretch; flex-wrap:wrap; }
   .sem-row input { flex:1; min-width:200px; }
-  #semGo { background:rgba(139,92,246,.15); border:1px solid rgba(139,92,246,.45);
-    color:#c4b5fd; border-radius:10px; padding:0 20px; font-family:inherit; font-size:14.5px;
-    font-weight:700; cursor:pointer; white-space:nowrap; }
-  #semGo:hover:not(:disabled) { filter:brightness(1.3); }
-  #semGo:disabled { opacity:.45; cursor:default; }
   .sem .ft-jump { background:rgba(139,92,246,.12); border-color:rgba(139,92,246,.4); color:#c4b5fd; }
   .sem-score { font-family:'Inter',sans-serif; font-size:9.5px; font-weight:800; color:var(--dim);
     text-align:center; letter-spacing:.5px; }
@@ -231,10 +241,7 @@
         ใส่ <b style="color:var(--muted)">comma (,)</b> คั่นเพื่อหาช่วงที่มีครบทุกคำ เช่น
         <code style="font-family:'Inter',monospace">change, culture</code></span>
     </div>
-    <div class="sem-row">
-      <input type="search" id="qt" placeholder="เช่น  แม่น้ำเปลี่ยนทิศ  /  change, culture  /  ลูกน้องหมดไฟ อยากลาออก" autocomplete="off">
-      <button type="button" id="semGo">ค้นหา</button>
-    </div>
+    <input type="search" id="qt" placeholder="เช่น  แม่น้ำเปลี่ยนทิศ  /  change, culture  /  ลูกน้องหมดไฟ อยากลาออก" autocomplete="off">
 
     <div class="panes">
       <div class="pane">
@@ -245,7 +252,7 @@
       </div>
       <div class="pane">
         <div class="pane-head">🧠 <span class="pane-tag">1B</span> ค้นหาความหมายใกล้เคียง
-          <span class="pane-note">กด <b>ค้นหา</b> หรือ Enter · ครั้งแรกโหลดโมเดล ~120 MB</span></div>
+          <span class="pane-note">ขึ้นอัตโนมัติขณะพิมพ์ · ครั้งแรกโหลดโมเดล ~120 MB ครั้งเดียว</span></div>
         <div class="ft-status" id="semStatus"></div>
         <div class="pane-body" id="semResults"></div>
       </div>
@@ -254,7 +261,7 @@
 
   <div class="controls">
     <div class="field">
-      <label for="q" class="part2-label">ค้นหา — skill / competency / pillar / ชื่อแขก / EP</label>
+      <label for="q" class="part2-label"><span class="part-tag t2">Type 2</span> ค้นหาจาก — ชื่อ skill / competency / pillar / ชื่อแขก / EP</label>
       <input type="search" id="q" placeholder="เช่น Change Management, Catalyst, ครบเครื่องเรื่องคน, EP 32…" autocomplete="off">
     </div>
     <div class="field">
@@ -730,7 +737,6 @@ async function semInit() {
   if (SEM && SEM_PIPE) return true;
   if (SEM_BUSY) return false;
   SEM_BUSY = true;
-  el("semGo").disabled = true;
   try {
     if (!SEM) {
       semSay("กำลังโหลดเวกเตอร์ของทุกช่วง…");
@@ -763,7 +769,6 @@ async function semInit() {
     return false;
   } finally {
     SEM_BUSY = false;
-    el("semGo").disabled = false;
   }
 }
 
@@ -821,21 +826,26 @@ function semRender(hits) {
   }).join("");
 }
 
-const SEM_HINT = `<div class="ft-more">กด <b style="color:var(--muted)">ค้นหา</b> หรือ Enter
-  เพื่อหาช่วงที่ความหมายใกล้เคียง — จะเจอแม้แขกไม่ได้พูดคำนั้นตรงๆ</div>`;
-let SEM_SHOWN = "";     // คำที่ผลด้านขวากำลังแสดงอยู่
+let SEM_SHOWN = "";        // คำที่ผลฝั่ง 1B กำลังแสดงอยู่
+let semTimer = null;
 
 let ftTimer = null;
 async function ftSearch() {
   const q = norm(el("qt").value);
   clearTimeout(ftTimer);
-  // ถ้าพิมพ์คำใหม่ ผลความหมายใกล้เคียงของคำเก่าถือว่าใช้ไม่ได้แล้ว
-  if (q !== SEM_SHOWN) { el("semResults").innerHTML = q.length >= 2 ? SEM_HINT : ""; el("semStatus").textContent = ""; }
+  clearTimeout(semTimer);
+
+  // พิมพ์คำใหม่ → ผลเก่าของ 1B ใช้ไม่ได้แล้ว ล้างทิ้งทันที
+  if (q !== SEM_SHOWN) { el("semResults").innerHTML = ""; el("semStatus").textContent = ""; }
+
   if (q.length < 2) { el("ftResults").innerHTML = ""; el("ftStatus").textContent = ""; return; }
-  ftTimer = setTimeout(async () => {
-    await ftLoad();
-    ftRender(q);
-  }, 250);
+
+  ftTimer = setTimeout(async () => { await ftLoad(); ftRender(q); }, 250);
+
+  // 1B ค้นอัตโนมัติเหมือน 1A แต่หน่วงนานกว่า เพราะต้องคำนวณเวกเตอร์
+  semTimer = setTimeout(() => {
+    if (norm(el("qt").value) === q) semSearch();
+  }, SEM_PIPE ? 500 : 900);
 }
 
 function esc(s) {
@@ -849,7 +859,6 @@ buildControls();
   el(id).addEventListener(id === "q" ? "input" : "change", render);
 });
 el("qt").addEventListener("input", ftSearch);
-el("semGo").addEventListener("click", semSearch);
 el("qt").addEventListener("keydown", e => { if (e.key === "Enter") semSearch(); });
 load();
 </script>
