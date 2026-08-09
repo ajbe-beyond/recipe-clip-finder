@@ -105,6 +105,29 @@
   .bar { height:3px; border-radius:2px; background:rgba(139,92,246,.18); overflow:hidden; margin-top:3px; }
   .bar i { display:block; height:100%; background:#8b5cf6; }
 
+  /* ── 2 หน้าต่างผลลัพธ์ ── */
+  .panes { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:16px; }
+  .pane { background:var(--bg); border:1px solid var(--line); border-radius:12px;
+    padding:14px; display:flex; flex-direction:column; min-width:0; }
+  .pane-head { font-size:13px; font-weight:800; color:var(--text);
+    padding-bottom:10px; border-bottom:1px solid var(--line); }
+  .pane-note { display:block; font-size:11px; font-weight:500; color:var(--dim); margin-top:3px; }
+  .pane .ft-status { margin-top:9px; }
+  .pane-body { max-height:560px; overflow-y:auto; overflow-x:hidden; }
+  .pane-body .ft-hit { flex-direction:column; gap:8px; }
+  .pane-body .ft-when { flex-direction:row; align-items:center; gap:8px; min-width:0; flex-wrap:wrap; }
+  .pane-body .ft-thai, .pane-body .sem-score { text-align:left; }
+  .pane-body .bar { width:70px; }
+  .pane:nth-child(2) .ft-jump { background:rgba(139,92,246,.12);
+    border-color:rgba(139,92,246,.4); color:#c4b5fd; }
+  .pane-body::-webkit-scrollbar { width:8px; }
+  .pane-body::-webkit-scrollbar-thumb { background:var(--line); border-radius:4px; }
+
+  @media (max-width:820px) {
+    .panes { grid-template-columns:1fr; }
+    .pane-body { max-height:420px; }
+  }
+
   /* ── GROUPS ── */
   .group { margin-bottom:26px; }
   .group-head { display:flex; align-items:center; gap:9px; margin-bottom:12px;
@@ -207,30 +230,30 @@
 
   <section class="ft">
     <div class="ft-head">
-      <span class="ft-title">🔎 ค้นหาจากคำพูดในคลิป</span>
-      <span class="ft-sub">พิมพ์คำ วลี หรือประโยคที่แขกพูด — ค้นทั้ง 78 ตอน แล้วกระโดดไปวินาทีนั้นได้เลย<br>
+      <span class="ft-title">ค้นหาในคำพูดของแขกรับเชิญ</span>
+      <span class="ft-sub">พิมพ์ครั้งเดียว ได้ผลทั้งสองแบบพร้อมกัน — ค้นทั้ง 78 ตอน แล้วกระโดดไปวินาทีนั้นได้เลย<br>
         ใส่ <b style="color:var(--muted)">comma (,)</b> คั่นเพื่อหาช่วงที่มีครบทุกคำ เช่น
         <code style="font-family:'Inter',monospace">change, culture</code></span>
     </div>
-    <input type="search" id="qt" placeholder="เช่น แม่น้ำเปลี่ยนทิศ  หรือ  change, culture" autocomplete="off">
-    <div class="ft-status" id="ftStatus"></div>
-    <div id="ftResults"></div>
-  </section>
-
-  <section class="ft sem">
-    <div class="ft-head">
-      <span class="ft-title">🧠 ค้นหาความหมายใกล้เคียง</span>
-      <span class="ft-sub">อธิบายเรื่องที่อยากได้เป็นภาษาคนแบบไหนก็ได้ — ระบบหาช่วงที่<b style="color:var(--muted)">ความหมายใกล้เคียง</b>
-        ให้ ถึงแม้แขกจะไม่ได้พูดคำนั้นตรงๆ<br>
-        <span style="color:var(--dim)">ครั้งแรกต้องโหลดโมเดล AI ~120 MB (เก็บไว้ในเครื่อง ครั้งต่อไปไม่ต้องโหลดใหม่)
-        — แนะนำให้ทำตอนอยู่บนไวไฟที่เร็ว</span></span>
-    </div>
     <div class="sem-row">
-      <input type="search" id="qs" placeholder="เช่น ลูกน้องหมดไฟ อยากลาออก / ตัดสินใจตอนไม่มีข้อมูลพอ" autocomplete="off">
+      <input type="search" id="qt" placeholder="เช่น  แม่น้ำเปลี่ยนทิศ  /  change, culture  /  ลูกน้องหมดไฟ อยากลาออก" autocomplete="off">
       <button type="button" id="semGo">ค้นหา</button>
     </div>
-    <div class="ft-status" id="semStatus"></div>
-    <div id="semResults"></div>
+
+    <div class="panes">
+      <div class="pane">
+        <div class="pane-head">🔎 ค้นหาจากคำพูดในคลิป
+          <span class="pane-note">ตรงตัวอักษร · ขึ้นทันทีขณะพิมพ์</span></div>
+        <div class="ft-status" id="ftStatus"></div>
+        <div class="pane-body" id="ftResults"></div>
+      </div>
+      <div class="pane">
+        <div class="pane-head">🧠 ค้นหาความหมายใกล้เคียง
+          <span class="pane-note">กด <b>ค้นหา</b> หรือ Enter · ครั้งแรกโหลดโมเดล ~120 MB</span></div>
+        <div class="ft-status" id="semStatus"></div>
+        <div class="pane-body" id="semResults"></div>
+      </div>
+    </div>
   </section>
 
   <div class="toolbar">
@@ -733,10 +756,11 @@ async function semInit() {
 }
 
 async function semSearch() {
-  const q = norm(el("qs").value);
+  const q = norm(el("qt").value).replace(/,/g, " ");   // comma ใช้กับการค้นตรงตัวเท่านั้น
   if (q.length < 2) { semSay("พิมพ์อย่างน้อย 2 ตัวอักษร"); return; }
   if (!(await semInit())) return;
 
+  SEM_SHOWN = norm(el("qt").value);
   semSay("กำลังเทียบความหมาย…");
   const out = await SEM_PIPE(q, { pooling: "mean", normalize: true });
   const qv = Float32Array.from(out.data);
@@ -785,10 +809,16 @@ function semRender(hits) {
   }).join("");
 }
 
+const SEM_HINT = `<div class="ft-more">กด <b style="color:var(--muted)">ค้นหา</b> หรือ Enter
+  เพื่อหาช่วงที่ความหมายใกล้เคียง — จะเจอแม้แขกไม่ได้พูดคำนั้นตรงๆ</div>`;
+let SEM_SHOWN = "";     // คำที่ผลด้านขวากำลังแสดงอยู่
+
 let ftTimer = null;
 async function ftSearch() {
   const q = norm(el("qt").value);
   clearTimeout(ftTimer);
+  // ถ้าพิมพ์คำใหม่ ผลความหมายใกล้เคียงของคำเก่าถือว่าใช้ไม่ได้แล้ว
+  if (q !== SEM_SHOWN) { el("semResults").innerHTML = q.length >= 2 ? SEM_HINT : ""; el("semStatus").textContent = ""; }
   if (q.length < 2) { el("ftResults").innerHTML = ""; el("ftStatus").textContent = ""; return; }
   ftTimer = setTimeout(async () => {
     await ftLoad();
@@ -808,7 +838,7 @@ buildControls();
 });
 el("qt").addEventListener("input", ftSearch);
 el("semGo").addEventListener("click", semSearch);
-el("qs").addEventListener("keydown", e => { if (e.key === "Enter") semSearch(); });
+el("qt").addEventListener("keydown", e => { if (e.key === "Enter") semSearch(); });
 load();
 </script>
 </body>
