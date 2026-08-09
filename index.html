@@ -44,6 +44,8 @@
   .field:last-child { margin-bottom:0; }
   label { display:block; font-size:11px; font-weight:700; letter-spacing:1.5px;
     text-transform:uppercase; color:var(--dim); margin-bottom:7px; }
+  /* หัวข้อ Part 2 — ใหญ่ขึ้น 30% (11 → 14.3) และเป็นสีขาว */
+  .part2-label { font-size:14.3px; color:var(--text); margin-bottom:9px; }
   input[type=search], select {
     width:100%; background:var(--panel-2); border:1px solid var(--line); border-radius:10px;
     padding:12px 14px; color:var(--text); font-family:inherit; font-size:15px; outline:none;
@@ -74,8 +76,16 @@
   .ft { background:var(--panel); border:1px solid var(--line); border-radius:16px;
     padding:18px; margin-bottom:22px; }
   .ft-head { margin-bottom:11px; }
-  .ft-title { display:block; font-size:14px; font-weight:800; color:var(--text); }
-  .ft-sub { display:block; font-size:12px; color:var(--muted); margin-top:3px; line-height:1.5; }
+  /* หัวข้อใหญ่ขึ้น 30% (14 → 18.2) ส่วนคำบรรยายคงขนาดเดิม */
+  .ft-title { display:block; font-size:18.2px; font-weight:800; color:var(--text); line-height:1.4; }
+  .ft-sub { display:block; font-size:12px; color:var(--muted); margin-top:5px; line-height:1.5; }
+  .part-tag { display:inline-block; font-family:'Inter',sans-serif; font-size:12px; font-weight:800;
+    letter-spacing:1.5px; text-transform:uppercase; color:#c4b5fd; background:rgba(139,92,246,.16);
+    border:1px solid rgba(139,92,246,.4); border-radius:6px; padding:2px 9px; margin-right:6px;
+    vertical-align:2px; }
+  .pane-tag { display:inline-block; font-family:'Inter',sans-serif; font-weight:900;
+    color:#93c5fd; margin-right:2px; }
+  .pane:nth-child(2) .pane-tag { color:#c4b5fd; }
   .ft-status { font-size:12.5px; color:var(--muted); margin-top:10px; }
   .ft-hit { border-top:1px solid var(--line-soft); padding:13px 0; display:flex; gap:12px;
     align-items:flex-start; flex-wrap:wrap; }
@@ -109,9 +119,10 @@
   .panes { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:16px; }
   .pane { background:var(--bg); border:1px solid var(--line); border-radius:12px;
     padding:14px; display:flex; flex-direction:column; min-width:0; }
-  .pane-head { font-size:13px; font-weight:800; color:var(--text);
+  /* หัวข้อหน้าต่างใหญ่ขึ้น 30% (13 → 16.9) คำบรรยายใต้หัวข้อคงเดิม */
+  .pane-head { font-size:16.9px; font-weight:800; color:var(--text); line-height:1.4;
     padding-bottom:10px; border-bottom:1px solid var(--line); }
-  .pane-note { display:block; font-size:11px; font-weight:500; color:var(--dim); margin-top:3px; }
+  .pane-note { display:block; font-size:11px; font-weight:500; color:var(--dim); margin-top:4px; }
   .pane .ft-status { margin-top:9px; }
   .pane-body { max-height:560px; overflow-y:auto; overflow-x:hidden; }
   .pane-body .ft-hit { flex-direction:column; gap:8px; }
@@ -213,9 +224,37 @@
 
   <div id="notice" class="notice"></div>
 
+  <section class="ft">
+    <div class="ft-head">
+      <span class="ft-title"><span class="part-tag">Type 1</span> ค้นหาในคำพูดของแขกรับเชิญ</span>
+      <span class="ft-sub">พิมพ์ครั้งเดียว ได้ผลทั้งสองแบบพร้อมกัน — ค้นทั้ง 78 ตอน แล้วกระโดดไปวินาทีนั้นได้เลย<br>
+        ใส่ <b style="color:var(--muted)">comma (,)</b> คั่นเพื่อหาช่วงที่มีครบทุกคำ เช่น
+        <code style="font-family:'Inter',monospace">change, culture</code></span>
+    </div>
+    <div class="sem-row">
+      <input type="search" id="qt" placeholder="เช่น  แม่น้ำเปลี่ยนทิศ  /  change, culture  /  ลูกน้องหมดไฟ อยากลาออก" autocomplete="off">
+      <button type="button" id="semGo">ค้นหา</button>
+    </div>
+
+    <div class="panes">
+      <div class="pane">
+        <div class="pane-head">🔎 <span class="pane-tag">1A</span> ค้นหาจากคำพูดในคลิป
+          <span class="pane-note">ตรงตัวอักษร · ขึ้นทันทีขณะพิมพ์</span></div>
+        <div class="ft-status" id="ftStatus"></div>
+        <div class="pane-body" id="ftResults"></div>
+      </div>
+      <div class="pane">
+        <div class="pane-head">🧠 <span class="pane-tag">1B</span> ค้นหาความหมายใกล้เคียง
+          <span class="pane-note">กด <b>ค้นหา</b> หรือ Enter · ครั้งแรกโหลดโมเดล ~120 MB</span></div>
+        <div class="ft-status" id="semStatus"></div>
+        <div class="pane-body" id="semResults"></div>
+      </div>
+    </div>
+  </section>
+
   <div class="controls">
     <div class="field">
-      <label for="q">ค้นหา — skill / competency / pillar / ชื่อแขก / EP</label>
+      <label for="q" class="part2-label">ค้นหา — skill / competency / pillar / ชื่อแขก / EP</label>
       <input type="search" id="q" placeholder="เช่น Change Management, Catalyst, ครบเครื่องเรื่องคน, EP 32…" autocomplete="off">
     </div>
     <div class="field">
@@ -228,33 +267,6 @@
     </div>
   </div>
 
-  <section class="ft">
-    <div class="ft-head">
-      <span class="ft-title">ค้นหาในคำพูดของแขกรับเชิญ</span>
-      <span class="ft-sub">พิมพ์ครั้งเดียว ได้ผลทั้งสองแบบพร้อมกัน — ค้นทั้ง 78 ตอน แล้วกระโดดไปวินาทีนั้นได้เลย<br>
-        ใส่ <b style="color:var(--muted)">comma (,)</b> คั่นเพื่อหาช่วงที่มีครบทุกคำ เช่น
-        <code style="font-family:'Inter',monospace">change, culture</code></span>
-    </div>
-    <div class="sem-row">
-      <input type="search" id="qt" placeholder="เช่น  แม่น้ำเปลี่ยนทิศ  /  change, culture  /  ลูกน้องหมดไฟ อยากลาออก" autocomplete="off">
-      <button type="button" id="semGo">ค้นหา</button>
-    </div>
-
-    <div class="panes">
-      <div class="pane">
-        <div class="pane-head">🔎 ค้นหาจากคำพูดในคลิป
-          <span class="pane-note">ตรงตัวอักษร · ขึ้นทันทีขณะพิมพ์</span></div>
-        <div class="ft-status" id="ftStatus"></div>
-        <div class="pane-body" id="ftResults"></div>
-      </div>
-      <div class="pane">
-        <div class="pane-head">🧠 ค้นหาความหมายใกล้เคียง
-          <span class="pane-note">กด <b>ค้นหา</b> หรือ Enter · ครั้งแรกโหลดโมเดล ~120 MB</span></div>
-        <div class="ft-status" id="semStatus"></div>
-        <div class="pane-body" id="semResults"></div>
-      </div>
-    </div>
-  </section>
 
   <div class="toolbar">
     <div class="count" id="count"></div>
