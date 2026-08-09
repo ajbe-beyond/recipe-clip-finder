@@ -100,6 +100,8 @@
   .part-tag.t2 { color:#6ee7b7; background:rgba(16,185,129,.16); border-color:rgba(16,185,129,.45); }
   .pane-tag { display:inline-block; font-family:'Inter',sans-serif; font-weight:900;
     color:#93c5fd; margin-right:2px; }
+  .pane-en { font-family:'Inter',sans-serif; font-size:13px; font-weight:600;
+    color:var(--muted); white-space:nowrap; }
   .pane:nth-child(2) .pane-tag { color:#c4b5fd; }
   .ft-status { font-size:12.5px; color:var(--muted); margin-top:10px; }
   .ft-hit { border-top:1px solid var(--line-soft); padding:13px 0; display:flex; gap:12px;
@@ -245,13 +247,13 @@
 
     <div class="panes">
       <div class="pane">
-        <div class="pane-head">🔎 <span class="pane-tag">1A</span> ค้นหาจากคำพูดในคลิป
+        <div class="pane-head">🔎 <span class="pane-tag">1A</span> ค้นหาจากคำพูดในคลิป <span class="pane-en">(Exactly word)</span>
           <span class="pane-note">ตรงตัวอักษร · ขึ้นทันทีขณะพิมพ์</span></div>
         <div class="ft-status" id="ftStatus"></div>
         <div class="pane-body" id="ftResults"></div>
       </div>
       <div class="pane">
-        <div class="pane-head">🧠 <span class="pane-tag">1B</span> ค้นหาความหมายใกล้เคียง
+        <div class="pane-head">🧠 <span class="pane-tag">1B</span> ค้นหาความหมายใกล้เคียง <span class="pane-en">(context based)</span>
           <span class="pane-note">ขึ้นอัตโนมัติขณะพิมพ์ · ครั้งแรกโหลดโมเดล ~120 MB ครั้งเดียว</span></div>
         <div class="ft-status" id="semStatus"></div>
         <div class="pane-body" id="semResults"></div>
