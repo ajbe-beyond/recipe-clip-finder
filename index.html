@@ -671,6 +671,22 @@ function render() {
 
 }
 
+// "EP 32 — ชื่อตอน" → "EP 32" (ถ้าไม่มีเลข EP คืนค่าว่าง)
+function epNo(ep) {
+  const m = (ep || "").match(/EP\.?\s*(\d+)/i);
+  return m ? `EP ${m[1]}` : "";
+}
+
+// "12:45" → "12 นาที 45 วินาที" | "1:04:30" → "1 ชม. 4 นาที 30 วินาที"
+function thaiTime(ts) {
+  const p = (ts || "").split(":");
+  if (!p.length || p.some(x => !/^\d+$/.test(x.trim()))) return "";
+  const n = p.map(Number);
+  if (n.length === 2) return `${n[0]} นาที ${n[1]} วินาที`;
+  if (n.length === 3) return `${n[0]} ชม. ${n[1]} นาที ${n[2]} วินาที`;
+  return "";
+}
+
 function card(r, p) {
   const ok = isQAd(r.qa);
   const link = jumpUrl(r.url, r.ts);
