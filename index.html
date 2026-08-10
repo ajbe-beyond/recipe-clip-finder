@@ -73,6 +73,8 @@
   #ytGo:disabled { opacity:.45; cursor:default; }
   .yt-card { margin-top:14px; background:rgba(6,10,32,.5); border:1px solid rgba(157,180,240,.25);
     border-radius:12px; padding:16px 18px; }
+  .yt-hint { font-size:12px; color:var(--muted); margin-top:9px; line-height:1.6; }
+  .yt-hint b { color:#C7D6F7; font-family:'Inter',sans-serif; font-weight:800; }
   .yt-meta { font-size:12.5px; color:#9DB4F0; margin-bottom:10px; }
   .yt-meta b { color:var(--text); font-weight:800; }
   .yt-text { font-size:14.5px; line-height:1.75; color:var(--text); white-space:pre-wrap; }
@@ -113,8 +115,23 @@
   .chip.on { color:#fff; }
   .chip .dot { display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:7px; vertical-align:1px; }
 
+  /* ── แถบผลลัพธ์ของ Part 2 — โทนแดง C.I. ให้รู้ว่าเป็นผลของ Type 2 ── */
   .toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px;
-    flex-wrap:wrap; margin-bottom:14px; }
+    flex-wrap:wrap; margin-bottom:14px; padding:12px 16px; border-radius:12px;
+    background:rgba(209,34,41,.10); border:1px solid rgba(209,34,41,.32);
+    border-left:4px solid #D12229; }
+  .toolbar .count b { color:#F5A3A5; }
+  #results .group-head { border-bottom-color:rgba(209,34,41,.28) !important; }
+  .pager { display:flex; align-items:center; justify-content:center; gap:14px; flex-wrap:wrap;
+    margin-top:6px; padding:14px 16px; border-radius:12px;
+    background:rgba(209,34,41,.08); border:1px solid rgba(209,34,41,.28); }
+  .pg { background:rgba(209,34,41,.18); border:1px solid rgba(209,34,41,.55); color:#F5A3A5;
+    border-radius:9px; padding:9px 20px; font-family:inherit; font-size:14px; font-weight:800;
+    cursor:pointer; white-space:nowrap; }
+  .pg:hover:not(:disabled) { filter:brightness(1.3); }
+  .pg:disabled { opacity:.35; cursor:default; }
+  .pg-info { font-size:13px; color:var(--muted); }
+  .pg-info b { color:var(--text); font-weight:800; }
   .count { font-size:13px; color:var(--muted); }
   .count b { color:var(--text); font-weight:700; }
   .qa-toggle { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--muted); cursor:pointer; }
@@ -313,6 +330,13 @@
     </div>
   </div>
 
+  <div class="toolbar">
+    <div class="count" id="count"></div>
+    <label class="qa-toggle"><input type="checkbox" id="qaOnly"> แสดงเฉพาะคลิปที่ตรวจสอบแล้ว</label>
+  </div>
+
+  <div id="results"></div>
+
   <div class="controls part3">
     <div class="field">
       <label class="part2-label"><span class="part-tag t3">Type 3</span> ค้นหาตาม RECIPE Pillar</label>
@@ -331,26 +355,22 @@
         </div>
         <div class="yt-f">
           <span class="yt-lb">เวลาเริ่ม</span>
-          <input type="search" id="ytFrom" placeholder="12:45" autocomplete="off">
+          <input type="search" id="ytFrom" placeholder="1245 → 12:45" inputmode="numeric" autocomplete="off">
         </div>
         <div class="yt-f">
           <span class="yt-lb">เวลาจบ</span>
-          <input type="search" id="ytTo" placeholder="16:00" autocomplete="off">
+          <input type="search" id="ytTo" placeholder="1600 → 16:00" inputmode="numeric" autocomplete="off">
         </div>
         <button type="button" id="ytGo">ดึงข้อความ</button>
       </div>
+      <div class="yt-hint">พิมพ์ตัวเลขติดกันได้เลย ระบบใส่ : ให้เอง —
+        <b>1245</b> = 12:45 · <b>930</b> = 9:30 · <b>10430</b> = 1:04:30 · พิมพ์ <b>7</b> = 7:00</div>
       <div class="ft-status" id="ytStatus"></div>
       <div id="ytOut"></div>
     </div>
   </div>
 
 
-  <div class="toolbar">
-    <div class="count" id="count"></div>
-    <label class="qa-toggle"><input type="checkbox" id="qaOnly"> แสดงเฉพาะคลิปที่ตรวจสอบแล้ว</label>
-  </div>
-
-  <div id="results"></div>
 
   <footer>
     <span>RECIPE Leadership Framework © 2026</span>
@@ -479,7 +499,9 @@ function normTs(ts) {
 /* ─── โหลดข้อมูล ─── */
 const el = id => document.getElementById(id);
 let ROWS = [];
-let TS_FIXED = 0;   // นับแถวที่ต้องดัด timestamp คืนจากที่ Sheets แปลงผิด
+let TS_FIXED = 0;
+const PAGE_SIZE = 6;   // 2 แถว × 3 การ์ด บนจอคอม
+let PAGE = 0;   // นับแถวที่ต้องดัด timestamp คืนจากที่ Sheets แปลงผิด
 
 function notify(kind, html) {
   const n = el("notice");
@@ -564,6 +586,7 @@ function buildControls() {
     b.className = "chip"; b.type = "button"; b.dataset.k = p.key;
     b.innerHTML = `<span class="dot" style="background:${p.color}"></span>${p.letter} · ${p.en}`;
     b.onclick = () => {
+      PAGE = 0;
       const on = b.classList.toggle("on");
       b.style.background = on ? p.tint : "";
       b.style.borderColor = on ? p.color : "";
@@ -607,13 +630,21 @@ function render() {
     return;
   }
 
-  // จัดกลุ่มตาม competency, เรียงตามเลข principle, QA แล้วขึ้นก่อน
-  const byComp = new Map();
-  list.forEach(r => { if (!byComp.has(r.n)) byComp.set(r.n, []); byComp.get(r.n).push(r); });
+  // เรียงตามเลข principle แล้ว QA แล้วขึ้นก่อน → ทำเป็นรายการเดียวเพื่อแบ่งหน้า
+  const flat = list.slice().sort((a, b) =>
+    a.n - b.n || (isQAd(b.qa) ? 1 : 0) - (isQAd(a.qa) ? 1 : 0));
 
-  out.innerHTML = [...byComp.keys()].sort((a,b) => a-b).map(n => {
+  const pages = Math.max(1, Math.ceil(flat.length / PAGE_SIZE));
+  if (PAGE >= pages) PAGE = pages - 1;
+  if (PAGE < 0) PAGE = 0;
+  const slice = flat.slice(PAGE * PAGE_SIZE, (PAGE + 1) * PAGE_SIZE);
+
+  // จัดกลุ่มเฉพาะการ์ดในหน้านี้ เพื่อให้ยังมีหัวข้อ competency กำกับ
+  const byComp = new Map();
+  slice.forEach(r => { if (!byComp.has(r.n)) byComp.set(r.n, []); byComp.get(r.n).push(r); });
+
+  const groups = [...byComp.keys()].map(n => {
     const c = compOf(n), p = pillarOf(c.p);
-    const items = byComp.get(n).sort((a,b) => (isQAd(b.qa)?1:0) - (isQAd(a.qa)?1:0));
     return `<section class="group">
       <div class="group-head" style="border-color:${p.color}22">
         <span class="group-num" style="color:${p.accent}">${String(n).padStart(2,"0")}</span>
@@ -621,25 +652,23 @@ function render() {
         <span class="group-en">${esc(c.en)}</span>
         <span class="group-pill" style="background:${p.tint};color:${p.accent}">${p.letter} · ${esc(p.en)}</span>
       </div>
-      <div class="cards">${items.map(r => card(r, p)).join("")}</div>
+      <div class="cards">${byComp.get(n).map(r => card(r, p)).join("")}</div>
     </section>`;
   }).join("");
-}
 
-// "EP 32 — ชื่อตอน" → "EP 32" (ถ้าไม่มีเลข EP คืนค่าว่าง)
-function epNo(ep) {
-  const m = (ep || "").match(/EP\.?\s*(\d+)/i);
-  return m ? `EP ${m[1]}` : "";
-}
+  const from = PAGE * PAGE_SIZE + 1, to = PAGE * PAGE_SIZE + slice.length;
+  const nav = pages > 1 ? `<div class="pager">
+      <button type="button" class="pg" id="pgPrev" ${PAGE === 0 ? "disabled" : ""}>← ก่อนหน้า</button>
+      <span class="pg-info">แสดง <b>${from}–${to}</b> จาก <b>${flat.length}</b> คลิป ·
+        หน้า <b>${PAGE + 1}</b>/${pages}</span>
+      <button type="button" class="pg" id="pgNext" ${PAGE + 1 >= pages ? "disabled" : ""}>Next →</button>
+    </div>` : "";
 
-// "12:45" → "12 นาที 45 วินาที" | "1:04:30" → "1 ชม. 4 นาที 30 วินาที"
-function thaiTime(ts) {
-  const p = (ts || "").split(":");
-  if (!p.length || p.some(x => !/^\d+$/.test(x.trim()))) return "";
-  const n = p.map(Number);
-  if (n.length === 2) return `${n[0]} นาที ${n[1]} วินาที`;
-  if (n.length === 3) return `${n[0]} ชม. ${n[1]} นาที ${n[2]} วินาที`;
-  return "";
+  out.innerHTML = groups + nav;
+  const go = d => { PAGE += d; render(); el("results").scrollIntoView({behavior:"smooth", block:"start"}); };
+  if (el("pgPrev")) el("pgPrev").onclick = () => go(-1);
+  if (el("pgNext")) el("pgNext").onclick = () => go(1);
+
 }
 
 function card(r, p) {
@@ -908,8 +937,40 @@ let YT_FULL = "", YT_OPEN = false;
 
 function ytSay(m) { el("ytStatus").innerHTML = m; }
 
+/* ทำให้กรอกเวลาง่ายที่สุด — รับตัวเลขล้วนแล้วเติม : ให้เอง
+   7 → 7:00 | 930 → 9:30 | 1245 → 12:45 | 10430 → 1:04:30 | 104530 → 10:45:30
+   รับ 12.45 / 12 45 / 12:45 ได้ด้วย */
+function tidyTime(v) {
+  const raw = (v || "").trim();
+  if (!raw) return "";
+  if (/^\d{1,2}:[0-5]\d(:[0-5]\d)?$/.test(raw)) return raw;       // ถูกอยู่แล้ว
+  const sep = raw.replace(/[.\s]+/g, ":");                          // 12.45 / 12 45 → 12:45
+  if (/^\d{1,2}:[0-5]\d(:[0-5]\d)?$/.test(sep)) return sep;
+  const d = raw.replace(/\D/g, "");
+  if (!d) return raw;
+  if (d.length <= 2) return `${parseInt(d, 10)}:00`;                 // 7 → 7:00
+  if (d.length === 3) return `${d[0]}:${d.slice(1)}`;                // 930 → 9:30
+  if (d.length === 4) return `${d.slice(0,2)}:${d.slice(2)}`;        // 1245 → 12:45
+  if (d.length === 5) return `${d[0]}:${d.slice(1,3)}:${d.slice(3)}`;
+  return `${d.slice(0,2)}:${d.slice(2,4)}:${d.slice(4,6)}`;
+}
+
+function bindTime(id) {
+  const f = el(id);
+  const fix = () => {
+    const t = tidyTime(f.value);
+    if (t !== f.value) f.value = t;
+    f.style.borderColor = (!f.value || toSeconds(f.value) !== null)
+      ? "" : "rgba(245,163,165,.8)";        // แดงเมื่อยังอ่านค่าไม่ได้
+  };
+  f.addEventListener("blur", fix);
+  f.addEventListener("change", fix);
+}
+
 async function ytExtract() {
   const url = norm(el("ytUrl").value);
+  el("ytFrom").value = tidyTime(el("ytFrom").value);
+  el("ytTo").value   = tidyTime(el("ytTo").value);
   const a = el("ytFrom").value, b = el("ytTo").value;
   el("ytOut").innerHTML = "";
 
@@ -998,13 +1059,18 @@ function esc(s) {
 /* ─── INIT ─── */
 buildControls();
 ["q","comp","qaOnly"].forEach(id => {
-  el(id).addEventListener(id === "q" ? "input" : "change", render);
+  el(id).addEventListener(id === "q" ? "input" : "change", () => { PAGE = 0; render(); });
 });
 el("qt").addEventListener("input", ftSearch);
 el("qt").addEventListener("keydown", e => { if (e.key === "Enter") semSearch(); });
 el("ytGo").addEventListener("click", ytExtract);
+["ytFrom","ytTo"].forEach(bindTime);
 ["ytUrl","ytFrom","ytTo"].forEach(id =>
-  el(id).addEventListener("keydown", e => { if (e.key === "Enter") ytExtract(); }));
+  el(id).addEventListener("keydown", e => {
+    if (e.key !== "Enter") return;
+    ["ytFrom","ytTo"].forEach(k => { el(k).value = tidyTime(el(k).value); });
+    ytExtract();
+  }));
 load();
 </script>
 </body>
