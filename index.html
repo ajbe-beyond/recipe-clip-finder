@@ -54,6 +54,38 @@
   .controls.part3 .chip { background:rgba(30,18,3,.5); border-color:rgba(245,158,11,.22); }
   .controls.part3 label { color:rgba(252,211,77,.8); }
   .controls.part3 .part2-label { color:var(--text); }
+
+  /* ── PART 4 (ดึงข้อความจากคลิป) — navy รอง C.I. #162379 ── */
+  .controls.part4 { background:linear-gradient(180deg,rgba(22,35,121,.22),rgba(22,35,121,.06));
+    border-color:rgba(157,180,240,.35); border-left-color:#162379; }
+  .controls.part4 input[type=search] { background:rgba(6,10,32,.6); border-color:rgba(157,180,240,.3); }
+  .controls.part4 input[type=search]:focus { border-color:rgba(157,180,240,.75);
+    box-shadow:0 0 0 3px rgba(22,35,121,.35); }
+  .controls.part4 .part2-label { color:var(--text); }
+  .yt-grid { display:grid; grid-template-columns:1fr 150px 150px auto; gap:10px; align-items:end; }
+  .yt-f { display:flex; flex-direction:column; gap:6px; min-width:0; }
+  .yt-lb { font-family:'Inter',sans-serif; font-size:10.5px; font-weight:800; letter-spacing:1.5px;
+    text-transform:uppercase; color:#9DB4F0; }
+  #ytGo { background:rgba(22,35,121,.55); border:1px solid rgba(157,180,240,.5); color:#C7D6F7;
+    border-radius:10px; padding:12px 22px; font-family:inherit; font-size:14.5px; font-weight:700;
+    cursor:pointer; white-space:nowrap; }
+  #ytGo:hover:not(:disabled) { filter:brightness(1.25); }
+  #ytGo:disabled { opacity:.45; cursor:default; }
+  .yt-card { margin-top:14px; background:rgba(6,10,32,.5); border:1px solid rgba(157,180,240,.25);
+    border-radius:12px; padding:16px 18px; }
+  .yt-meta { font-size:12.5px; color:#9DB4F0; margin-bottom:10px; }
+  .yt-meta b { color:var(--text); font-weight:800; }
+  .yt-text { font-size:14.5px; line-height:1.75; color:var(--text); white-space:pre-wrap; }
+  .yt-acts { display:flex; gap:9px; flex-wrap:wrap; margin-top:13px; }
+  .yt-btn { background:rgba(157,180,240,.12); border:1px solid rgba(157,180,240,.4);
+    color:#C7D6F7; border-radius:8px; padding:7px 14px; font-family:inherit; font-size:13px;
+    font-weight:700; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; }
+  .yt-btn:hover { filter:brightness(1.25); }
+  @media (max-width:760px) {
+    .yt-grid { grid-template-columns:1fr 1fr; }
+    .yt-url { grid-column:1 / -1; }
+    #ytGo { grid-column:1 / -1; }
+  }
   .field { margin-bottom:14px; }
   .field:last-child { margin-bottom:0; }
   label { display:block; font-size:11px; font-weight:700; letter-spacing:1.5px;
@@ -106,6 +138,7 @@
     vertical-align:2px; }
   .part-tag.t2 { color:#F5A3A5; background:rgba(209,34,41,.2); border-color:rgba(209,34,41,.6); }
   .part-tag.t3 { color:#fcd34d; background:rgba(245,158,11,.16); border-color:rgba(245,158,11,.45); }
+  .part-tag.t4 { color:#C7D6F7; background:rgba(22,35,121,.55); border-color:rgba(157,180,240,.55); }
   .pane-tag { display:inline-block; font-family:'Inter',sans-serif; font-weight:900;
     color:#BADCE5; margin-right:2px; }
   .pane-en { font-family:'Inter',sans-serif; font-size:13px; font-weight:600;
@@ -284,6 +317,30 @@
     <div class="field">
       <label class="part2-label"><span class="part-tag t3">Type 3</span> ค้นหาตาม RECIPE Pillar</label>
       <div class="pillar-row" id="pillars"></div>
+    </div>
+  </div>
+
+
+  <div class="controls part4">
+    <div class="field">
+      <label class="part2-label"><span class="part-tag t4">Type 4</span> ดึงข้อความจาก Clip YouTube</label>
+      <div class="yt-grid">
+        <div class="yt-f yt-url">
+          <span class="yt-lb">ลิงก์ YouTube</span>
+          <input type="search" id="ytUrl" placeholder="วางลิงก์คลิป เช่น https://www.youtube.com/watch?v=..." autocomplete="off">
+        </div>
+        <div class="yt-f">
+          <span class="yt-lb">เวลาเริ่ม</span>
+          <input type="search" id="ytFrom" placeholder="12:45" autocomplete="off">
+        </div>
+        <div class="yt-f">
+          <span class="yt-lb">เวลาจบ</span>
+          <input type="search" id="ytTo" placeholder="16:00" autocomplete="off">
+        </div>
+        <button type="button" id="ytGo">ดึงข้อความ</button>
+      </div>
+      <div class="ft-status" id="ytStatus"></div>
+      <div id="ytOut"></div>
     </div>
   </div>
 
@@ -842,6 +899,78 @@ function semRender(hits) {
 let SEM_SHOWN = "";        // คำที่ผลฝั่ง 1B กำลังแสดงอยู่
 let semTimer = null;
 
+/* ═══ Type 4 — ดึงข้อความจากคลิปตามช่วงเวลา ═══
+   ใช้คำบรรยายจาก transcript-index.json ที่โหลดไว้แล้ว
+   จึงทำได้เฉพาะคลิปที่อยู่ในชุด 78 ตอนของ Leadership Secrets
+   (หน้านี้ไม่มี backend จึงดึงคำบรรยายของคลิป YouTube อื่นเองไม่ได้) */
+const YT_CUT = 500;              // แสดง 500 ตัวอักษรแรก ที่เหลือซ่อนไว้ใต้ปุ่มอ่านเพิ่ม
+let YT_FULL = "", YT_OPEN = false;
+
+function ytSay(m) { el("ytStatus").innerHTML = m; }
+
+async function ytExtract() {
+  const url = norm(el("ytUrl").value);
+  const a = el("ytFrom").value, b = el("ytTo").value;
+  el("ytOut").innerHTML = "";
+
+  const vid = videoId(url);
+  if (!vid) { ytSay("ใส่ลิงก์ YouTube ให้ถูกต้องก่อน เช่น https://www.youtube.com/watch?v=XXXXXXXXXXX"); return; }
+  const s = toSeconds(a), e = toSeconds(b);
+  if (s === null || e === null) { ytSay("ใส่เวลาให้ครบทั้งช่องเริ่มและช่องจบ รูปแบบ mm:ss หรือ h:mm:ss"); return; }
+  if (e <= s) { ytSay("เวลาจบต้องมากกว่าเวลาเริ่ม"); return; }
+
+  el("ytGo").disabled = true;
+  ytSay("กำลังเตรียมคำบรรยาย…");
+  await ftLoad();
+  el("ytGo").disabled = false;
+  if (!FT) { ytSay("โหลดคำบรรยายไม่สำเร็จ ลองรีเฟรชหน้า"); return; }
+
+  const ei = FT.eps.findIndex(x => x[0] === vid);
+  if (ei === -1) {
+    ytSay(`คลิปนี้ไม่ได้อยู่ในชุด 78 ตอนของ Leadership Secrets ที่ระบบมีคำบรรยายไว้ —
+      ระบบจึงดึงข้อความให้ไม่ได้ (หน้านี้ไม่มีเซิร์ฟเวอร์ จึงอ่านคำบรรยายของคลิปอื่นเองไม่ได้)`);
+    return;
+  }
+
+  // เก็บบล็อกที่คาบเกี่ยวช่วงเวลาที่ขอ (บล็อกละ ~45 วินาที)
+  const hits = FT.blocks.filter(([i, sec]) => i === ei && sec + 45 > s && sec < e)
+                        .sort((x, y) => x[1] - y[1]);
+  if (!hits.length) {
+    ytSay(`ไม่มีคำบรรยายในช่วง ${esc(hms(s))}–${esc(hms(e))} ของคลิปนี้ — ลองขยายช่วงเวลาให้กว้างขึ้น`);
+    return;
+  }
+
+  YT_FULL = hits.map(h => h[2]).join(" ").replace(/\s{2,}/g, " ").trim();
+  YT_OPEN = false;
+  const title = FT.eps[ei][1];
+  ytSay(`ได้ข้อความ <b style="color:var(--text)">${YT_FULL.length.toLocaleString()}</b> ตัวอักษร
+    จาก ${hits.length} ช่วง`);
+  ytRender(vid, title, s, e);
+}
+
+function ytRender(vid, title, s, e) {
+  const long = YT_FULL.length > YT_CUT;
+  const shown = (!long || YT_OPEN) ? YT_FULL : YT_FULL.slice(0, YT_CUT) + "…";
+  el("ytOut").innerHTML = `<div class="yt-card">
+    <div class="yt-meta">${esc(title)} · ช่วง <b>${esc(hms(s))} – ${esc(hms(e))}</b>
+      (${esc(thaiTime(hms(s)))} ถึง ${esc(thaiTime(hms(e)))})</div>
+    <div class="yt-text">${esc(shown)}</div>
+    <div class="yt-acts">
+      ${long ? `<button type="button" class="yt-btn" id="ytMore">${YT_OPEN
+        ? "ย่อกลับ" : `อ่านเพิ่ม (อีก ${(YT_FULL.length - YT_CUT).toLocaleString()} ตัวอักษร)`}</button>` : ""}
+      <button type="button" class="yt-btn" id="ytCopy">คัดลอกข้อความทั้งหมด</button>
+      <a class="yt-btn" href="https://www.youtube.com/watch?v=${vid}&t=${s}s"
+         target="_blank" rel="noopener">▶ เปิดคลิปที่นาทีนี้</a>
+    </div>
+  </div>`;
+  const more = el("ytMore");
+  if (more) more.onclick = () => { YT_OPEN = !YT_OPEN; ytRender(vid, title, s, e); };
+  el("ytCopy").onclick = async (ev) => {
+    try { await navigator.clipboard.writeText(YT_FULL); ev.target.textContent = "คัดลอกแล้ว ✓"; }
+    catch { ev.target.textContent = "คัดลอกไม่สำเร็จ ให้ลากเลือกเอง"; }
+  };
+}
+
 let ftTimer = null;
 async function ftSearch() {
   const q = norm(el("qt").value);
@@ -873,6 +1002,9 @@ buildControls();
 });
 el("qt").addEventListener("input", ftSearch);
 el("qt").addEventListener("keydown", e => { if (e.key === "Enter") semSearch(); });
+el("ytGo").addEventListener("click", ytExtract);
+["ytUrl","ytFrom","ytTo"].forEach(id =>
+  el(id).addEventListener("keydown", e => { if (e.key === "Enter") ytExtract(); }));
 load();
 </script>
 </body>
