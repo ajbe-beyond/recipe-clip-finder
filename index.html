@@ -297,7 +297,7 @@
   <section class="ft">
     <div class="ft-head">
       <span class="ft-title"><span class="part-tag">Type 1</span> ค้นหาในคำพูดของแขกรับเชิญ</span>
-      <span class="ft-sub">พิมพ์ครั้งเดียว ได้ผลทั้งสองแบบพร้อมกัน — ค้นทั้ง 78 ตอน แล้วกระโดดไปวินาทีนั้นได้เลย<br>
+      <span class="ft-sub">พิมพ์ครั้งเดียว ได้ผลทั้งสองแบบพร้อมกัน — ค้นทั้ง 123 คลิป แล้วกระโดดไปวินาทีนั้นได้เลย<br>
         ใส่ <b style="color:var(--muted)">comma (,)</b> คั่นเพื่อหาช่วงที่มีครบทุกคำ เช่น
         <code style="font-family:'Inter',monospace">change, culture</code></span>
     </div>
@@ -724,23 +724,29 @@ function card(r, p) {
 /* ═══ ค้นหาจากคำพูดในคลิป (full-text) ═══
    index มีขนาดใหญ่ (~2 MB หลังบีบอัด) จึงโหลดครั้งแรกตอนผู้ใช้ค้นจริงเท่านั้น
    ไม่ถ่วงตอนเปิดหน้า */
-let FT = null, FT_LOADING = false;
+let FT = null, FT_PROMISE = null;
 const FT_MAX = 60;   // แสดงผลสูงสุดกี่รายการ
 
-async function ftLoad() {
-  if (FT || FT_LOADING) return FT;
-  FT_LOADING = true;
-  el("ftStatus").textContent = "กำลังโหลดคำบรรยายทั้ง 78 ตอน… (ครั้งแรกครั้งเดียว)";
-  try {
-    const res = await fetch("transcript-index.json", { cache: "force-cache" });
-    if (!res.ok) throw new Error("HTTP " + res.status);
-    FT = await res.json();
-  } catch (e) {
-    el("ftStatus").textContent = "โหลดคำบรรยายไม่สำเร็จ (" + e.message +
-      ") — ต้องมีไฟล์ transcript-index.json วางไว้ข้างๆ หน้านี้";
-  }
-  FT_LOADING = false;
-  return FT;
+// โหลดครั้งเดียว — ถ้ามีคนเรียกซ้ำระหว่างกำลังโหลด ให้รอ promise เดิม
+// (เดิมคืนค่าว่างทันที ทำให้ Type 4 ขึ้นว่า "โหลดไม่สำเร็จ" ทั้งที่กำลังโหลดอยู่)
+function ftLoad() {
+  if (FT) return Promise.resolve(FT);
+  if (FT_PROMISE) return FT_PROMISE;
+  FT_PROMISE = (async () => {
+    el("ftStatus").textContent = "กำลังโหลดคำบรรยายทั้ง 123 คลิป… (ครั้งแรกครั้งเดียว)";
+    try {
+      const res = await fetch("transcript-index.json", { cache: "force-cache" });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      FT = await res.json();
+      el("ftStatus").textContent = "";
+    } catch (e) {
+      el("ftStatus").textContent = "โหลดคำบรรยายไม่สำเร็จ (" + e.message +
+        ") — ต้องมีไฟล์ transcript-index.json วางไว้ข้างๆ หน้านี้";
+      FT_PROMISE = null;          // ให้ลองใหม่ได้
+    }
+    return FT;
+  })();
+  return FT_PROMISE;
 }
 
 // หาชื่อแขกจากข้อมูล tag ที่โหลดมาแล้ว (ถ้ามี) เพื่อแสดงคู่กับชื่อตอน
@@ -946,7 +952,7 @@ let semTimer = null;
 
 /* ═══ Type 4 — ดึงข้อความจากคลิปตามช่วงเวลา ═══
    ใช้คำบรรยายจาก transcript-index.json ที่โหลดไว้แล้ว
-   จึงทำได้เฉพาะคลิปที่อยู่ในชุด 78 ตอนของ Leadership Secrets
+   จึงทำได้เฉพาะคลิปที่อยู่ในชุด 123 คลิป Leadership Secrets
    (หน้านี้ไม่มี backend จึงดึงคำบรรยายของคลิป YouTube อื่นเองไม่ได้) */
 const YT_CUT = 500;              // แสดง 500 ตัวอักษรแรก ที่เหลือซ่อนไว้ใต้ปุ่มอ่านเพิ่ม
 let YT_FULL = "", YT_OPEN = false;
@@ -1000,11 +1006,11 @@ async function ytExtract() {
   ytSay("กำลังเตรียมคำบรรยาย…");
   await ftLoad();
   el("ytGo").disabled = false;
-  if (!FT) { ytSay("โหลดคำบรรยายไม่สำเร็จ ลองรีเฟรชหน้า"); return; }
+  if (!FT) { ytSay("โหลดคำบรรยายไม่สำเร็จ — เช็คอินเทอร์เน็ตแล้วกดใหม่อีกครั้ง"); return; }
 
   const ei = FT.eps.findIndex(x => x[0] === vid);
   if (ei === -1) {
-    ytSay(`คลิปนี้ไม่ได้อยู่ในชุด 78 ตอนของ Leadership Secrets ที่ระบบมีคำบรรยายไว้ —
+    ytSay(`คลิปนี้ไม่ได้อยู่ในชุด 123 คลิป Leadership Secrets ที่ระบบมีคำบรรยายไว้ —
       ระบบจึงดึงข้อความให้ไม่ได้ (หน้านี้ไม่มีเซิร์ฟเวอร์ จึงอ่านคำบรรยายของคลิปอื่นเองไม่ได้)`);
     return;
   }
