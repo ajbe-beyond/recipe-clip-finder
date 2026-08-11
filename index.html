@@ -735,7 +735,7 @@ function ftLoad() {
   FT_PROMISE = (async () => {
     el("ftStatus").textContent = "กำลังโหลดคำบรรยายทั้ง 123 คลิป… (ครั้งแรกครั้งเดียว)";
     try {
-      const res = await fetch("transcript-index.json", { cache: "force-cache" });
+      const res = await fetch(`transcript-index.json?v=${DATA_VERSION}`, { cache: "force-cache" });
       if (!res.ok) throw new Error("HTTP " + res.status);
       FT = await res.json();
       el("ftStatus").textContent = "";
@@ -848,6 +848,9 @@ function hms(sec) {
    เวกเตอร์ของทุกช่วงคำนวณไว้ล่วงหน้าแล้ว (embeddings.bin, int8)
    ส่วนคำที่ผู้ใช้พิมพ์ ต้องแปลงเป็นเวกเตอร์ตอนนั้น จึงต้องโหลดโมเดลลงเบราว์เซอร์
    ใช้โมเดลตัวเดียวกับตอนคำนวณล่วงหน้า ไม่งั้นเวกเตอร์อยู่คนละปริภูมิ เทียบกันไม่ได้ */
+/* เลขเวอร์ชันของไฟล์ข้อมูล — ต้องบวกเลขนี้ทุกครั้งที่สร้าง
+   transcript-index.json / embeddings.* ใหม่ ไม่งั้นเบราว์เซอร์จะใช้ของเก่าที่แคชไว้ */
+const DATA_VERSION = "2";
 const SEM_MODEL = "Xenova/paraphrase-multilingual-MiniLM-L12-v2";
 let SEM = null, SEM_PIPE = null, SEM_BUSY = false;
 const SEM_MAX = 40;
@@ -862,8 +865,8 @@ async function semInit() {
     if (!SEM) {
       semSay("กำลังโหลดเวกเตอร์ของทุกช่วง…");
       const [mRes, bRes] = await Promise.all([
-        fetch("embeddings.json", { cache: "force-cache" }),
-        fetch("embeddings.bin",  { cache: "force-cache" }),
+        fetch(`embeddings.json?v=${DATA_VERSION}`, { cache: "force-cache" }),
+        fetch(`embeddings.bin?v=${DATA_VERSION}`,  { cache: "force-cache" }),
       ]);
       if (!mRes.ok || !bRes.ok) throw new Error("ไม่พบไฟล์ embeddings");
       const meta = await mRes.json();
