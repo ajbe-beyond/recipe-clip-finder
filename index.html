@@ -73,6 +73,53 @@
   #ytGo:disabled { opacity:.45; cursor:default; }
   .yt-card { margin-top:14px; background:rgba(6,10,32,.5); border:1px solid rgba(157,180,240,.25);
     border-radius:12px; padding:16px 18px; }
+  /* ── PART 5 (Matching Competency) — เขียวมรกต แยกจาก part อื่น ── */
+  .controls.part5 { background:linear-gradient(180deg,rgba(16,185,129,.10),rgba(16,185,129,.02));
+    border-color:rgba(16,185,129,.35); border-left-color:#10b981; }
+  .controls.part5 .part2-label { color:var(--text); }
+  .p5-sub { font-size:12.5px; color:var(--muted); line-height:1.6; margin-bottom:14px; }
+  .p5-sub b { color:#6ee7b7; font-weight:800; }
+  .p5-cols { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .p5-box { background:rgba(3,26,16,.5); border:1px solid rgba(16,185,129,.25);
+    border-radius:12px; padding:14px; display:flex; flex-direction:column; }
+  .p5-h { font-size:14.5px; font-weight:800; color:var(--text); margin-bottom:4px; }
+  .p5-tag { display:inline-block; font-family:'Inter',sans-serif; font-size:11.5px; font-weight:900;
+    letter-spacing:1px; color:#6ee7b7; background:rgba(16,185,129,.18);
+    border:1px solid rgba(16,185,129,.45); border-radius:5px; padding:2px 8px; margin-right:6px; }
+  .p5-note { font-size:11.5px; color:var(--dim); line-height:1.5; margin-bottom:11px; }
+  .p5-drop { display:flex; align-items:center; justify-content:center; text-align:center;
+    min-height:92px; border:2px dashed rgba(16,185,129,.4); border-radius:10px; cursor:pointer;
+    color:#6ee7b7; font-size:13.5px; font-weight:700; padding:12px; transition:.15s; }
+  .p5-drop:hover { background:rgba(16,185,129,.08); border-color:rgba(52,211,153,.7); }
+  .controls.part5 textarea { width:100%; background:rgba(3,26,16,.55);
+    border:1px solid rgba(16,185,129,.28); border-radius:10px; padding:12px 14px;
+    color:var(--text); font-family:inherit; font-size:14px; line-height:1.6; outline:none; resize:vertical; }
+  .controls.part5 textarea:focus { border-color:rgba(52,211,153,.65);
+    box-shadow:0 0 0 3px rgba(16,185,129,.15); }
+  .p5-acts { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+  #p5Go { background:rgba(16,185,129,.2); border:1px solid rgba(16,185,129,.6); color:#6ee7b7;
+    border-radius:10px; padding:12px 26px; font-family:inherit; font-size:14.5px; font-weight:800;
+    cursor:pointer; }
+  #p5Go:hover:not(:disabled) { filter:brightness(1.3); }
+  #p5Go:disabled { opacity:.45; cursor:default; }
+  .p5-clear { background:transparent; border:1px solid var(--line); color:var(--muted);
+    border-radius:10px; padding:12px 18px; font-family:inherit; font-size:13.5px; cursor:pointer; }
+  .p5-hit { display:flex; gap:14px; align-items:flex-start; flex-wrap:wrap;
+    background:rgba(3,26,16,.45); border:1px solid rgba(16,185,129,.25); border-radius:12px;
+    padding:14px 16px; margin-top:11px; }
+  .p5-rank { font-family:'Inter',sans-serif; font-size:26px; font-weight:900; color:#34d399;
+    min-width:38px; line-height:1.1; }
+  .p5-body { flex:1; min-width:220px; }
+  .p5-ep { font-size:14.5px; font-weight:700; color:var(--text); line-height:1.45; }
+  .p5-why { font-size:13px; color:var(--muted); line-height:1.6; margin-top:7px; }
+  .p5-side { display:flex; flex-direction:column; gap:6px; align-items:flex-start; }
+  .p5-jump { text-decoration:none; font-family:'Inter',sans-serif; font-size:13px; font-weight:800;
+    background:rgba(16,185,129,.15); border:1px solid rgba(16,185,129,.5); color:#6ee7b7;
+    border-radius:8px; padding:8px 14px; white-space:nowrap; }
+  .p5-jump:hover { filter:brightness(1.3); }
+  .p5-score { font-size:11px; color:var(--dim); }
+  @media (max-width:760px) { .p5-cols { grid-template-columns:1fr; } }
+
   .yt-hint { font-size:12px; color:var(--muted); margin-top:9px; line-height:1.6; }
   .yt-hint b { color:#C7D6F7; font-family:'Inter',sans-serif; font-weight:800; }
   .yt-meta { font-size:12.5px; color:#9DB4F0; margin-bottom:10px; }
@@ -156,6 +203,7 @@
   .part-tag.t2 { color:#F5A3A5; background:rgba(209,34,41,.2); border-color:rgba(209,34,41,.6); }
   .part-tag.t3 { color:#fcd34d; background:rgba(245,158,11,.16); border-color:rgba(245,158,11,.45); }
   .part-tag.t4 { color:#C7D6F7; background:rgba(22,35,121,.55); border-color:rgba(157,180,240,.55); }
+  .part-tag.t5 { color:#6ee7b7; background:rgba(16,185,129,.2); border-color:rgba(16,185,129,.6); }
   .pane-tag { display:inline-block; font-family:'Inter',sans-serif; font-weight:900;
     color:#BADCE5; margin-right:2px; }
   .pane-en { font-family:'Inter',sans-serif; font-size:13px; font-weight:600;
@@ -369,6 +417,38 @@
       <div id="ytOut"></div>
     </div>
   </div>
+
+  <div class="controls part5">
+    <div class="field">
+      <label class="part2-label"><span class="part-tag t5">Type 5</span> Matching Leadership Competency ขององค์กรลูกค้า</label>
+      <div class="p5-sub">วาง Competency ของลูกค้าเข้าไป ระบบจะหา <b>5 ตอนที่เนื้อหาตรงที่สุด</b>
+        พร้อมช่วงเวลาที่แนะนำ — เทียบด้วยความหมาย ไม่ใช่การจับคำ</div>
+
+      <div class="p5-cols">
+        <div class="p5-box">
+          <div class="p5-h"><span class="p5-tag">5A</span> อัปโหลดไฟล์</div>
+          <div class="p5-note">PDF อ่านข้อความได้ทันที · รูปภาพต้องผ่าน OCR (ช้าและแม่นน้อยกว่า)</div>
+          <label class="p5-drop" for="p5File">
+            <span id="p5FileName">เลือกไฟล์ PDF / PNG / JPG</span>
+          </label>
+          <input type="file" id="p5File" accept=".pdf,.png,.jpg,.jpeg" hidden>
+        </div>
+        <div class="p5-box">
+          <div class="p5-h"><span class="p5-tag">5B</span> วางข้อความ</div>
+          <div class="p5-note">วางรายการ competency ได้เลย บรรทัดละข้อจะแม่นที่สุด</div>
+          <textarea id="p5Text" rows="5" placeholder="เช่น&#10;Strategic Thinking — คิดเชิงกลยุทธ์ มองภาพใหญ่&#10;Coaching &amp; Developing Others&#10;Driving Change"></textarea>
+        </div>
+      </div>
+
+      <div class="p5-acts">
+        <button type="button" id="p5Go">หา 5 ตอนที่ตรงที่สุด</button>
+        <button type="button" class="p5-clear" id="p5Clear">ล้าง</button>
+      </div>
+      <div class="ft-status" id="p5Status"></div>
+      <div id="p5Out"></div>
+    </div>
+  </div>
+
 
 
 
@@ -1057,6 +1137,142 @@ function ytRender(vid, title, s, e) {
   };
 }
 
+/* ═══ Type 5 — จับคู่ Leadership Competency ของลูกค้ากับตอนที่เนื้อหาตรง ═══
+   ใช้เวกเตอร์ชุดเดียวกับ 1B: แปลง competency ของลูกค้าเป็นเวกเตอร์
+   แล้วหาบล็อกที่ความหมายใกล้ที่สุด → รวมเป็นรายตอน → คืน 5 ตอนที่ตรงที่สุด
+   5A รับไฟล์: PDF อ่านข้อความตรง ๆ · รูปภาพต้องผ่าน OCR (ช้าและแม่นน้อยกว่า) */
+let P5_TEXT = "";           // ข้อความที่ดึงได้จากไฟล์ (5A)
+const P5_TOP = 5;
+
+function p5Say(m) { el("p5Status").innerHTML = m; }
+
+async function p5ReadPdf(file) {
+  p5Say("กำลังอ่าน PDF…");
+  const pdfjs = await import("https://cdn.jsdelivr.net/npm/pdfjs-dist@4.7.76/build/pdf.min.mjs");
+  pdfjs.GlobalWorkerOptions.workerSrc =
+    "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.7.76/build/pdf.worker.min.mjs";
+  const doc = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
+  const out = [];
+  for (let i = 1; i <= doc.numPages; i++) {
+    p5Say(`กำลังอ่าน PDF… หน้า ${i}/${doc.numPages}`);
+    const c = await (await doc.getPage(i)).getTextContent();
+    out.push(c.items.map(x => x.str).join(" "));
+  }
+  return out.join("\n").replace(/\s{2,}/g, " ").trim();
+}
+
+async function p5ReadImage(file) {
+  p5Say("กำลังโหลดตัวอ่านตัวอักษรจากภาพ (OCR) — ครั้งแรกใช้เวลาสักครู่…");
+  const { createWorker } = await import(
+    "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.esm.min.js");
+  const w = await createWorker(["tha", "eng"], 1, {
+    logger: m => { if (m.status === "recognizing text")
+      p5Say(`กำลังอ่านตัวอักษรจากภาพ… ${Math.round(m.progress * 100)}%`); },
+  });
+  const { data } = await w.recognize(file);
+  await w.terminate();
+  return (data.text || "").replace(/\s{2,}/g, " ").trim();
+}
+
+async function p5File(file) {
+  if (!file) return;
+  el("p5FileName").textContent = file.name;
+  P5_TEXT = "";
+  try {
+    P5_TEXT = /\.pdf$/i.test(file.name) ? await p5ReadPdf(file) : await p5ReadImage(file);
+    if (!P5_TEXT) {
+      p5Say("อ่านข้อความจากไฟล์นี้ไม่ได้ — ถ้าเป็น PDF ที่สแกนมาเป็นภาพ ให้บันทึกเป็นรูปแล้วอัปใหม่ หรือวางข้อความในช่อง 5B");
+      return;
+    }
+    p5Say(`อ่านได้ <b style="color:var(--text)">${P5_TEXT.length.toLocaleString()}</b> ตัวอักษร — กดปุ่มเพื่อหา 5 ตอนที่ตรงที่สุด`);
+  } catch (e) {
+    p5Say("อ่านไฟล์ไม่สำเร็จ: " + esc(e.message) + " — ลองวางข้อความในช่อง 5B แทน");
+  }
+}
+
+// ตัดข้อความยาวเป็นก้อน ๆ เพื่อให้แต่ละ competency ถูกเทียบแยกกัน (แม่นกว่ารวมเป็นก้อนเดียว)
+function p5Chunks(text) {
+  let parts = text.split(/[\n•·\-–—]|(?:\d+[.)])/).map(x => norm(x)).filter(x => x.length >= 6);
+  if (parts.length < 2) parts = text.match(/[^.!?]{20,180}/g) || [text];
+  return parts.slice(0, 14);         // จำกัดไว้ไม่ให้คำนวณนานเกิน
+}
+
+async function p5Match() {
+  const typed = norm(el("p5Text").value);
+  const src = typed || P5_TEXT;
+  if (!src || src.length < 8) {
+    p5Say("ใส่ competency ก่อน — อัปไฟล์ในช่อง 5A หรือวางข้อความในช่อง 5B"); return;
+  }
+  el("p5Go").disabled = true;
+  p5Say("กำลังเตรียมโมเดลและคำบรรยาย…");
+  const ok = await semInit();
+  el("p5Go").disabled = false;
+  if (!ok || !FT || !SEM) { p5Say("เตรียมข้อมูลไม่สำเร็จ ลองใหม่อีกครั้ง"); return; }
+
+  const chunks = p5Chunks(src);
+  p5Say(`กำลังเทียบ ${chunks.length} หัวข้อกับคำบรรยาย ${FT.blocks.length.toLocaleString()} ช่วง…`);
+
+  // เวกเตอร์ของแต่ละหัวข้อ competency
+  const qv = [];
+  for (const c of chunks) {
+    const o = await SEM_PIPE(c, { pooling: "mean", normalize: true });
+    qv.push(Float32Array.from(o.data));
+  }
+
+  const { count, dim, scale } = SEM.meta, V = SEM.v;
+  const best = new Map();                     // epIndex → {score, blockIndex, chunk}
+  for (let b = 0; b < count; b++) {
+    const off = b * dim;
+    let top = -1, ci = 0;
+    for (let k = 0; k < qv.length; k++) {
+      let dot = 0; const q = qv[k];
+      for (let d = 0; d < dim; d++) dot += q[d] * V[off + d];
+      dot /= scale;
+      if (dot > top) { top = dot; ci = k; }
+    }
+    const ei = FT.blocks[b][0];
+    const cur = best.get(ei);
+    if (!cur || top > cur.score) best.set(ei, { score: top, b, chunk: chunks[ci] });
+  }
+
+  const ranked = [...best.entries()].sort((a, b) => b[1].score - a[1].score)
+                  .filter(([, v]) => v.score > 0.2).slice(0, P5_TOP);
+  p5Render(ranked, chunks.length);
+}
+
+function p5Render(ranked, nChunks) {
+  if (!ranked.length) {
+    p5Say("");
+    el("p5Out").innerHTML = `<div class="ft-more">ไม่เจอตอนที่เนื้อหาใกล้เคียงพอ —
+      ลองใส่คำอธิบายของแต่ละ competency เพิ่ม ไม่ใช่แค่ชื่อหัวข้อสั้น ๆ</div>`;
+    return;
+  }
+  p5Say(`เทียบจาก <b style="color:var(--text)">${nChunks}</b> หัวข้อ · แนะนำ
+    <b style="color:var(--text)">${ranked.length}</b> ตอนที่ตรงที่สุด (เรียงจากตรงมากไปน้อย)`);
+  el("p5Out").innerHTML = ranked.map(([ei, v], i) => {
+    const [vid, title] = FT.eps[ei];
+    const [, sec, txt] = FT.blocks[v.b];
+    const end = sec + 180;                   // แนะนำช่วง ~3 นาที ตามมาตรฐานคลิปสอน
+    const pct = Math.round(Math.max(0, Math.min(1, v.score)) * 100);
+    const g = guestOf(vid);
+    return `<div class="p5-hit">
+      <div class="p5-rank">${i + 1}</div>
+      <div class="p5-body">
+        <div class="p5-ep">${g ? `${esc(g)} · ` : ""}${esc(title)}</div>
+        <div class="p5-why"><b style="color:#6ee7b7">ตรงกับ:</b> ${esc(v.chunk.slice(0, 90))}<br>
+          <b style="color:#6ee7b7">ช่วงที่แนะนำ:</b> ${esc(hms(sec))} – ${esc(hms(end))}
+          (${esc(thaiTime(hms(sec)))})<br>
+          <span style="opacity:.8">${esc(txt.slice(0, 150))}…</span></div>
+      </div>
+      <div class="p5-side">
+        <a class="p5-jump" href="https://www.youtube.com/watch?v=${vid}&t=${sec}s"
+           target="_blank" rel="noopener">▶ ${esc(hms(sec))}</a>
+        <span class="p5-score">ใกล้เคียง ${pct}%</span>
+      </div>
+    </div>`;
+  }).join("");
+}
+
 let ftTimer = null;
 async function ftSearch() {
   const q = norm(el("qt").value);
@@ -1090,6 +1306,13 @@ el("qt").addEventListener("input", ftSearch);
 el("qt").addEventListener("keydown", e => { if (e.key === "Enter") semSearch(); });
 el("ytGo").addEventListener("click", ytExtract);
 ["ytFrom","ytTo"].forEach(bindTime);
+el("p5File").addEventListener("change", e => p5File(e.target.files[0]));
+el("p5Go").addEventListener("click", p5Match);
+el("p5Clear").addEventListener("click", () => {
+  P5_TEXT = ""; el("p5Text").value = ""; el("p5File").value = "";
+  el("p5FileName").textContent = "เลือกไฟล์ PDF / PNG / JPG";
+  el("p5Out").innerHTML = ""; el("p5Status").textContent = "";
+});
 ["ytUrl","ytFrom","ytTo"].forEach(id =>
   el(id).addEventListener("keydown", e => {
     if (e.key !== "Enter") return;
