@@ -118,6 +118,15 @@
     border-radius:8px; padding:8px 14px; white-space:nowrap; }
   .p5-jump:hover { filter:brightness(1.3); }
   .p5-score { font-size:11px; color:var(--dim); }
+  .p5-part { margin-top:20px; }
+  .p5-part-h { display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    font-size:15px; font-weight:800; color:var(--text);
+    padding-bottom:10px; border-bottom:2px solid rgba(16,185,129,.35); }
+  .p5-part-no { font-family:'Inter',sans-serif; font-size:11px; font-weight:900; letter-spacing:2px;
+    color:#6ee7b7; background:rgba(16,185,129,.18); border:1px solid rgba(16,185,129,.5);
+    border-radius:5px; padding:3px 9px; }
+  .p5-comp { margin-top:16px; padding-left:14px; border-left:3px solid rgba(16,185,129,.4); }
+  .p5-comp-h { font-size:14px; font-weight:800; color:#6ee7b7; margin-bottom:2px; }
   @media (max-width:760px) { .p5-cols { grid-template-columns:1fr; } }
 
   .yt-hint { font-size:12px; color:var(--muted); margin-top:9px; line-height:1.6; }
@@ -421,7 +430,7 @@
   <div class="controls part5">
     <div class="field">
       <label class="part2-label"><span class="part-tag t5">Type 5</span> Matching Leadership Competency ขององค์กรลูกค้า</label>
-      <div class="p5-sub">วาง Competency ของลูกค้าเข้าไป ระบบจะหา <b>5 ตอนที่เนื้อหาตรงที่สุด</b>
+      <div class="p5-sub">วาง Competency ของลูกค้าเข้าไป ระบบจะแนะนำ <b>ตอนที่เนื้อหาตรงที่สุด</b>
         พร้อมช่วงเวลาที่แนะนำ — เทียบด้วยความหมาย ไม่ใช่การจับคำ</div>
 
       <div class="p5-cols">
@@ -441,7 +450,7 @@
       </div>
 
       <div class="p5-acts">
-        <button type="button" id="p5Go">หา 5 ตอนที่ตรงที่สุด</button>
+        <button type="button" id="p5Go">ค้นหาตาม Competency</button>
         <button type="button" class="p5-clear" id="p5Clear">ล้าง</button>
       </div>
       <div class="ft-status" id="p5Status"></div>
@@ -930,7 +939,7 @@ function hms(sec) {
    ใช้โมเดลตัวเดียวกับตอนคำนวณล่วงหน้า ไม่งั้นเวกเตอร์อยู่คนละปริภูมิ เทียบกันไม่ได้ */
 /* เลขเวอร์ชันของไฟล์ข้อมูล — ต้องบวกเลขนี้ทุกครั้งที่สร้าง
    transcript-index.json / embeddings.* ใหม่ ไม่งั้นเบราว์เซอร์จะใช้ของเก่าที่แคชไว้ */
-const DATA_VERSION = "5";
+const DATA_VERSION = "6";
 const SEM_MODEL = "Xenova/paraphrase-multilingual-MiniLM-L12-v2";
 let SEM = null, SEM_PIPE = null, SEM_BUSY = false;
 const SEM_MAX = 40;
@@ -1184,7 +1193,7 @@ async function p5File(file) {
       p5Say("อ่านข้อความจากไฟล์นี้ไม่ได้ — ถ้าเป็น PDF ที่สแกนมาเป็นภาพ ให้บันทึกเป็นรูปแล้วอัปใหม่ หรือวางข้อความในช่อง 5B");
       return;
     }
-    p5Say(`อ่านได้ <b style="color:var(--text)">${P5_TEXT.length.toLocaleString()}</b> ตัวอักษร — กดปุ่มเพื่อหา 5 ตอนที่ตรงที่สุด`);
+    p5Say(`อ่านได้ <b style="color:var(--text)">${P5_TEXT.length.toLocaleString()}</b> ตัวอักษร — กดปุ่มค้นหาตาม Competency`);
   } catch (e) {
     p5Say("อ่านไฟล์ไม่สำเร็จ: " + esc(e.message) + " — ลองวางข้อความในช่อง 5B แทน");
   }
@@ -1220,71 +1229,128 @@ async function p5Match() {
   }
 
   const { count, dim, scale } = SEM.meta, V = SEM.v;
-  const best = new Map();                     // epIndex → {score, blockIndex, chunk}
+
+  // นาทีสุดท้ายของแต่ละตอน — ใช้กันไม่ให้ช่วงที่แนะนำเลยความยาวคลิปจริง
+  const lastSec = new Map();
+  FT.blocks.forEach(([ei, sec]) => {
+    if (!lastSec.has(ei) || sec > lastSec.get(ei)) lastSec.set(ei, sec);
+  });
+
+  // คะแนนแยกราย competency: ต่อ 1 หัวข้อ เก็บตอนที่ดีที่สุด + นับว่าทั้งตอนมีกี่ช่วงที่เข้าเกณฑ์
+  const HIT = 0.45;
+  const perChunk = chunks.map(() => new Map());
   for (let b = 0; b < count; b++) {
-    const off = b * dim;
-    let top = -1, ci = 0;
+    const off = b * dim, ei = FT.blocks[b][0];
     for (let k = 0; k < qv.length; k++) {
       let dot = 0; const q = qv[k];
       for (let d = 0; d < dim; d++) dot += q[d] * V[off + d];
       dot /= scale;
-      if (dot > top) { top = dot; ci = k; }
+      const m = perChunk[k], cur = m.get(ei);
+      if (!cur) m.set(ei, { score: dot, b, hits: dot >= HIT ? 1 : 0 });
+      else {
+        if (dot > cur.score) { cur.score = dot; cur.b = b; }
+        if (dot >= HIT) cur.hits++;
+      }
     }
-    const ei = FT.blocks[b][0];
-    const cur = best.get(ei);
-    if (!cur || top > cur.score) best.set(ei, { score: top, b, chunk: chunks[ci] });
   }
 
-  // กระจายให้แต่ละหัวข้อ competency ได้ตอนของตัวเองก่อน (วนทีละหัวข้อ)
-  // ไม่งั้นหัวข้อที่คะแนนสูงหัวข้อเดียวจะกวาดครบทั้ง 5 ที่ อีก 2 หัวข้อไม่ได้อะไรเลย
-  const all = [...best.entries()].filter(([, v]) => v.score > 0.2)
-                                 .sort((a, b) => b[1].score - a[1].score);
-  const picked = [], used = new Set();
-  for (let round = 0; picked.length < P5_TOP && round < 3; round++) {
-    for (let k = 0; k < chunks.length && picked.length < P5_TOP; k++) {
-      const hit = all.find(([ei, v]) => !used.has(ei) && v.chunk === chunks[k]);
-      if (hit) { picked.push(hit); used.add(hit[0]); }
-    }
-    if (picked.length === used.size && !all.some(([ei]) => !used.has(ei))) break;
-  }
-  for (const h of all) {                       // เติมที่ว่างที่เหลือด้วยคะแนนสูงสุด
-    if (picked.length >= P5_TOP) break;
-    if (!used.has(h[0])) { picked.push(h); used.add(h[0]); }
-  }
-  p5Render(picked, chunks.length);
+  // Part 1 — ตอบโจทย์ทุก competency รวมกัน: เฉลี่ยคะแนนที่ดีที่สุดของทุกหัวข้อ
+  const eps = new Set(FT.blocks.map(x => x[0]));
+  const combined = [...eps].map(ei => {
+    const per = perChunk.map(m => m.get(ei)?.score ?? 0);
+    const avg = per.reduce((a, b) => a + b, 0) / per.length;
+    const bestK = per.indexOf(Math.max(...per));
+    return { ei, avg, per, bestK, hit: perChunk[bestK].get(ei) };
+  }).filter(x => x.avg > 0.2).sort((a, b) => b.avg - a.avg).slice(0, P5_TOP);
+
+  // Part 2 — แยกราย competency หัวข้อละ 3 ตอน
+  const byComp = chunks.map((c, k) => ({
+    chunk: c,
+    tops: [...perChunk[k].entries()].filter(([, v]) => v.score > 0.2)
+            .sort((a, b) => b[1].score - a[1].score).slice(0, 3),
+  }));
+
+  p5Render(combined, byComp, chunks, lastSec);
 }
 
-function p5Render(ranked, nChunks) {
-  if (!ranked.length) {
+// "3 นาที 0 วินาที" — ความยาวจริงของช่วงที่แนะนำ
+function durTh(sec) {
+  sec = Math.max(0, Math.round(sec));
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+  return (h ? `${h} ชม. ` : "") + `${m} นาที ${s} วินาที`;
+}
+
+function p5Slot(ei, hit, lastSec) {
+  const [vid, title] = FT.eps[ei];
+  const [, sec, txt] = FT.blocks[hit.b];
+  const cap = (lastSec.get(ei) ?? sec) + 45;      // ไม่ให้เลยความยาวคลิป
+  const end = Math.min(sec + 180, cap);
+  return { vid, title, sec, end, txt, len: end - sec,
+           pct: Math.round(Math.max(0, Math.min(1, hit.score)) * 100), hits: hit.hits };
+}
+
+function p5Card(rank, ei, hit, lastSec, why) {
+  const d = p5Slot(ei, hit, lastSec);
+  const g = guestOf(d.vid);
+  return `<div class="p5-hit">
+    <div class="p5-rank">${rank}</div>
+    <div class="p5-body">
+      <div class="p5-ep">${g ? `${esc(g)} · ` : ""}${esc(d.title)}</div>
+      <div class="p5-why">
+        <b style="color:#6ee7b7">ช่วงที่แนะนำ:</b> ${esc(hms(d.sec))} – ${esc(hms(d.end))}
+        <span style="opacity:.75">(ยาว ${esc(durTh(d.len))})</span><br>
+        <b style="color:#6ee7b7">ทำไมตอนนี้ถึงเข้ากับ competency นี้:</b> ${why}
+        ทั้งตอนมี <b style="color:var(--text)">${d.hits}</b> ช่วงที่เนื้อหาเข้าเกณฑ์เดียวกัน<br>
+        <span style="opacity:.8">คำพูดช่วงนั้น: ${esc(d.txt.slice(0, 160))}…</span>
+      </div>
+    </div>
+    <div class="p5-side">
+      <a class="p5-jump" href="https://www.youtube.com/watch?v=${d.vid}&t=${d.sec}s"
+         target="_blank" rel="noopener">▶ ${esc(hms(d.sec))}</a>
+      <span class="p5-score">ใกล้เคียง ${d.pct}%</span>
+    </div>
+  </div>`;
+}
+
+function p5Render(combined, byComp, chunks, lastSec) {
+  if (!combined.length) {
     p5Say("");
     el("p5Out").innerHTML = `<div class="ft-more">ไม่เจอตอนที่เนื้อหาใกล้เคียงพอ —
       ลองใส่คำอธิบายของแต่ละ competency เพิ่ม ไม่ใช่แค่ชื่อหัวข้อสั้น ๆ</div>`;
     return;
   }
-  p5Say(`เทียบจาก <b style="color:var(--text)">${nChunks}</b> หัวข้อ · แนะนำ
-    <b style="color:var(--text)">${ranked.length}</b> ตอนที่ตรงที่สุด (เรียงจากตรงมากไปน้อย)`);
-  el("p5Out").innerHTML = ranked.map(([ei, v], i) => {
-    const [vid, title] = FT.eps[ei];
-    const [, sec, txt] = FT.blocks[v.b];
-    const end = sec + 180;                   // แนะนำช่วง ~3 นาที ตามมาตรฐานคลิปสอน
-    const pct = Math.round(Math.max(0, Math.min(1, v.score)) * 100);
-    const g = guestOf(vid);
-    return `<div class="p5-hit">
-      <div class="p5-rank">${i + 1}</div>
-      <div class="p5-body">
-        <div class="p5-ep">${g ? `${esc(g)} · ` : ""}${esc(title)}</div>
-        <div class="p5-why"><b style="color:#6ee7b7">ตรงกับ:</b> ${esc(v.chunk.replace(/\s+/g, " ").slice(0, 90))}<br>
-          <b style="color:#6ee7b7">ช่วงที่แนะนำ:</b> ${esc(hms(sec))} – ${esc(hms(end))}
-          (${esc(thaiTime(hms(sec)))})<br>
-          <span style="opacity:.8">${esc(txt.slice(0, 150))}…</span></div>
-      </div>
-      <div class="p5-side">
-        <a class="p5-jump" href="https://www.youtube.com/watch?v=${vid}&t=${sec}s"
-           target="_blank" rel="noopener">▶ ${esc(hms(sec))}</a>
-        <span class="p5-score">ใกล้เคียง ${pct}%</span>
-      </div>
+  p5Say(`เทียบจาก <b style="color:var(--text)">${chunks.length}</b> competency
+    กับคำบรรยาย ${FT.blocks.length.toLocaleString()} ช่วง`);
+
+  const short = c => esc(c.replace(/\s+/g, " ").slice(0, 64));
+
+  const p1 = combined.map((x, i) => p5Card(i + 1, x.ei, x.hit, lastSec,
+    `เป็นตอนที่ครอบคลุมหลาย competency พร้อมกัน — คะแนนเฉลี่ยทุกหัวข้อ
+     <b style="color:var(--text)">${Math.round(x.avg * 100)}%</b>
+     และตรงกับ "<b style="color:var(--text)">${short(chunks[x.bestK])}</b>" มากที่สุด`)).join("");
+
+  const p2 = byComp.map(c => {
+    if (!c.tops.length) return `<div class="p5-comp">
+      <div class="p5-comp-h">${short(c.chunk)}</div>
+      <div class="ft-more">ไม่เจอตอนที่ตรงกับหัวข้อนี้</div></div>`;
+    return `<div class="p5-comp">
+      <div class="p5-comp-h">${short(c.chunk)}</div>
+      ${c.tops.map(([ei, hit], i) => p5Card(i + 1, ei, hit, lastSec,
+        `ช่วงนี้เป็นจุดที่เนื้อหาใกล้กับหัวข้อนี้ที่สุดในตอน`)).join("")}
     </div>`;
   }).join("");
+
+  el("p5Out").innerHTML = `
+    <div class="p5-part">
+      <div class="p5-part-h"><span class="p5-part-no">PART 1</span>
+        ตอบโจทย์ทุก competency รวมกัน — แนะนำ ${combined.length} ตอน</div>
+      ${p1}
+    </div>
+    <div class="p5-part">
+      <div class="p5-part-h"><span class="p5-part-no">PART 2</span>
+        แยกราย competency — หัวข้อละ 3 ตอน</div>
+      ${p2}
+    </div>`;
 }
 
 let ftTimer = null;
