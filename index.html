@@ -939,7 +939,7 @@ function hms(sec) {
    ใช้โมเดลตัวเดียวกับตอนคำนวณล่วงหน้า ไม่งั้นเวกเตอร์อยู่คนละปริภูมิ เทียบกันไม่ได้ */
 /* เลขเวอร์ชันของไฟล์ข้อมูล — ต้องบวกเลขนี้ทุกครั้งที่สร้าง
    transcript-index.json / embeddings.* ใหม่ ไม่งั้นเบราว์เซอร์จะใช้ของเก่าที่แคชไว้ */
-const DATA_VERSION = "6";
+const DATA_VERSION = "7";
 const SEM_MODEL = "Xenova/paraphrase-multilingual-MiniLM-L12-v2";
 let SEM = null, SEM_PIPE = null, SEM_BUSY = false;
 const SEM_MAX = 40;
@@ -1199,10 +1199,21 @@ async function p5File(file) {
   }
 }
 
-// ตัดข้อความยาวเป็นก้อน ๆ เพื่อให้แต่ละ competency ถูกเทียบแยกกัน (แม่นกว่ารวมเป็นก้อนเดียว)
+// ตัดข้อความเป็นราย competency
+// รองรับทั้งแบบบรรทัดละข้อ และแบบเขียนติดกันคั่นด้วยจุลภาค เช่น "Collaboration, Integrity, Agile"
 function p5Chunks(text) {
-  let parts = text.split(/[\n;•·]|(?:\d+[.)])/).map(x => norm(x)).filter(x => x.length >= 6);
-  if (parts.length < 2) parts = text.match(/[^.!?]{20,180}/g) || [text];
+  const lines = text.split(/[\n;•·|]|(?:\d+[.)])/).map(x => norm(x)).filter(Boolean);
+  const out = [];
+  for (const ln of lines) {
+    // ตัดที่จุลภาคเฉพาะเมื่อทุกชิ้นสั้น = เป็นรายการชื่อ ไม่ใช่ประโยคที่มีจุลภาคคั่นกลาง
+    if (ln.includes(",")) {
+      const bits = ln.split(",").map(x => norm(x)).filter(Boolean);
+      if (bits.length > 1 && bits.every(b => b.length <= 42)) { out.push(...bits); continue; }
+    }
+    out.push(ln);
+  }
+  let parts = out.filter(x => x.length >= 2);
+  if (!parts.length) parts = text.match(/[^.!?]{20,180}/g) || [text];
   return parts.slice(0, 14);         // จำกัดไว้ไม่ให้คำนวณนานเกิน
 }
 
