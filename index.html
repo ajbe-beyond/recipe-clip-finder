@@ -930,7 +930,7 @@ function hms(sec) {
    ใช้โมเดลตัวเดียวกับตอนคำนวณล่วงหน้า ไม่งั้นเวกเตอร์อยู่คนละปริภูมิ เทียบกันไม่ได้ */
 /* เลขเวอร์ชันของไฟล์ข้อมูล — ต้องบวกเลขนี้ทุกครั้งที่สร้าง
    transcript-index.json / embeddings.* ใหม่ ไม่งั้นเบราว์เซอร์จะใช้ของเก่าที่แคชไว้ */
-const DATA_VERSION = "4";
+const DATA_VERSION = "5";
 const SEM_MODEL = "Xenova/paraphrase-multilingual-MiniLM-L12-v2";
 let SEM = null, SEM_PIPE = null, SEM_BUSY = false;
 const SEM_MAX = 40;
@@ -1192,7 +1192,7 @@ async function p5File(file) {
 
 // ตัดข้อความยาวเป็นก้อน ๆ เพื่อให้แต่ละ competency ถูกเทียบแยกกัน (แม่นกว่ารวมเป็นก้อนเดียว)
 function p5Chunks(text) {
-  let parts = text.split(/[\n•·\-–—]|(?:\d+[.)])/).map(x => norm(x)).filter(x => x.length >= 6);
+  let parts = text.split(/[\n;•·]|(?:\d+[.)])/).map(x => norm(x)).filter(x => x.length >= 6);
   if (parts.length < 2) parts = text.match(/[^.!?]{20,180}/g) || [text];
   return parts.slice(0, 14);         // จำกัดไว้ไม่ให้คำนวณนานเกิน
 }
@@ -1235,9 +1235,23 @@ async function p5Match() {
     if (!cur || top > cur.score) best.set(ei, { score: top, b, chunk: chunks[ci] });
   }
 
-  const ranked = [...best.entries()].sort((a, b) => b[1].score - a[1].score)
-                  .filter(([, v]) => v.score > 0.2).slice(0, P5_TOP);
-  p5Render(ranked, chunks.length);
+  // กระจายให้แต่ละหัวข้อ competency ได้ตอนของตัวเองก่อน (วนทีละหัวข้อ)
+  // ไม่งั้นหัวข้อที่คะแนนสูงหัวข้อเดียวจะกวาดครบทั้ง 5 ที่ อีก 2 หัวข้อไม่ได้อะไรเลย
+  const all = [...best.entries()].filter(([, v]) => v.score > 0.2)
+                                 .sort((a, b) => b[1].score - a[1].score);
+  const picked = [], used = new Set();
+  for (let round = 0; picked.length < P5_TOP && round < 3; round++) {
+    for (let k = 0; k < chunks.length && picked.length < P5_TOP; k++) {
+      const hit = all.find(([ei, v]) => !used.has(ei) && v.chunk === chunks[k]);
+      if (hit) { picked.push(hit); used.add(hit[0]); }
+    }
+    if (picked.length === used.size && !all.some(([ei]) => !used.has(ei))) break;
+  }
+  for (const h of all) {                       // เติมที่ว่างที่เหลือด้วยคะแนนสูงสุด
+    if (picked.length >= P5_TOP) break;
+    if (!used.has(h[0])) { picked.push(h); used.add(h[0]); }
+  }
+  p5Render(picked, chunks.length);
 }
 
 function p5Render(ranked, nChunks) {
@@ -1259,7 +1273,7 @@ function p5Render(ranked, nChunks) {
       <div class="p5-rank">${i + 1}</div>
       <div class="p5-body">
         <div class="p5-ep">${g ? `${esc(g)} · ` : ""}${esc(title)}</div>
-        <div class="p5-why"><b style="color:#6ee7b7">ตรงกับ:</b> ${esc(v.chunk.slice(0, 90))}<br>
+        <div class="p5-why"><b style="color:#6ee7b7">ตรงกับ:</b> ${esc(v.chunk.replace(/\s+/g, " ").slice(0, 90))}<br>
           <b style="color:#6ee7b7">ช่วงที่แนะนำ:</b> ${esc(hms(sec))} – ${esc(hms(end))}
           (${esc(thaiTime(hms(sec)))})<br>
           <span style="opacity:.8">${esc(txt.slice(0, 150))}…</span></div>
