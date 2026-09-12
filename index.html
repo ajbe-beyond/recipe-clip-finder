@@ -232,6 +232,14 @@
     border-radius:7px; padding:6px 10px; white-space:nowrap; }
   .ft-jump:hover { filter:brightness(1.3); }
   .ft-thai { font-size:10.5px; color:var(--dim); text-align:center; }
+  /* ป้ายอันดับแนะนำ — 1st แดง C.I. / 2nd navy รอง / 3rd ฟ้าอ่อน */
+  .rank { display:inline-flex; align-items:center; gap:4px; font-family:'Inter',sans-serif;
+    font-size:11px; font-weight:900; letter-spacing:.5px; padding:4px 10px; border-radius:999px;
+    border:1px solid; white-space:nowrap; }
+  .rank-1 { color:#F5A3A5; background:rgba(209,34,41,.22); border-color:rgba(209,34,41,.7); }
+  .rank-2 { color:#C7D6F7; background:rgba(22,35,121,.5);  border-color:rgba(157,180,240,.6); }
+  .rank-3 { color:#BADCE5; background:rgba(186,220,229,.14); border-color:rgba(186,220,229,.5); }
+  .rank-note { font-size:11.5px; color:var(--dim); margin-top:7px; line-height:1.55; }
   .ft-body { flex:1; min-width:210px; }
   .ft-ep { font-size:12px; color:var(--muted); margin-bottom:4px; }
   .ft-txt { font-size:13.5px; line-height:1.65; color:var(--text); }
@@ -712,7 +720,8 @@ function render() {
   });
 
   const out = el("results");
-  el("count").innerHTML = `พบ <b>${list.length}</b> คลิป`;
+  el("count").innerHTML = `พบ <b>${list.length}</b> คลิป` +
+    (q ? ` · <span style="color:var(--dim)">★ อันดับแนะนำวัดจากคำค้นที่ตรงกับชื่อแขก / EP / โน้ต / ชื่อ competency</span>` : "");
 
   if (!list.length) {
     out.innerHTML = `<div class="empty">
@@ -724,8 +733,17 @@ function render() {
   }
 
   // เรียงตามเลข principle แล้ว QA แล้วขึ้นก่อน → ทำเป็นรายการเดียวเพื่อแบ่งหน้า
-  const flat = list.slice().sort((a, b) =>
-    a.n - b.n || (isQAd(b.qa) ? 1 : 0) - (isQAd(a.qa) ? 1 : 0));
+  // มีคำค้น → เรียงตามความตรงของเนื้อหา (จะได้ใส่อันดับแนะนำได้)
+  // ไม่มีคำค้น → เรียงตามเลข competency เหมือนเดิม เพราะไม่มีเกณฑ์วัดว่าอันไหน "ตรงกว่า"
+  const RANKED = !!q;
+  const flat = list.slice();
+  if (RANKED) {
+    flat.forEach(r => { r._s = cardScore(r, q); });
+    flat.sort((a, b) => b._s - a._s || a.n - b.n);
+  } else {
+    flat.sort((a, b) => a.n - b.n || (isQAd(b.qa) ? 1 : 0) - (isQAd(a.qa) ? 1 : 0));
+  }
+  const rankOf = new Map(flat.map((r, i) => [r, i]));
 
   const pages = Math.max(1, Math.ceil(flat.length / PAGE_SIZE));
   if (PAGE >= pages) PAGE = pages - 1;
@@ -745,7 +763,7 @@ function render() {
         <span class="group-en">${esc(c.en)}</span>
         <span class="group-pill" style="background:${p.tint};color:${p.accent}">${p.letter} · ${esc(p.en)}</span>
       </div>
-      <div class="cards">${byComp.get(n).map(r => card(r, p)).join("")}</div>
+      <div class="cards">${byComp.get(n).map(r => card(r, p, RANKED ? rankOf.get(r) : 99)).join("")}</div>
     </section>`;
   }).join("");
 
@@ -780,12 +798,13 @@ function thaiTime(ts) {
   return "";
 }
 
-function card(r, p) {
+function card(r, p, rank = 99) {
   const ok = isQAd(r.qa);
   const link = jumpUrl(r.url, r.ts);
   const th = thaiTime(r.ts);
   const meta = [
     r.ts  ? `<span class="tag">⏱ นาทีที่ <b>${esc(r.ts)}</b>${th ? ` · ${th}` : ""}</span>` : "",
+    rankBadge(rank),
     r.len ? `<span class="tag">▶ ยาว ${esc(r.len)}</span>` : "",
   ].join("");
   const credit = [
@@ -862,15 +881,17 @@ function ftRender(q) {
     const low = txt.toLowerCase();
     const pos = terms.map(t => low.indexOf(t));
     if (pos.some(p => p === -1)) continue;         // ขาดคำใดคำหนึ่ง → ตัดทิ้ง
-    hits.push([ei, sec, txt, Math.min(...pos)]);
+    hits.push([ei, sec, txt, Math.min(...pos), lexScore(txt, terms)]);
     if (hits.length > 500) break;
   }
+  hits.sort((a, b) => b[4] - a[4]);      // เรียงตามความตรงของเนื้อหา ไม่ใช่ลำดับในคลิป
 
   const label = terms.length > 1
     ? `ช่วงที่มีครบทั้ง ${terms.length} คำ (${terms.map(esc).join(" + ")})`
     : "ช่วงที่มีคำนี้";
   st.innerHTML = hits.length
-    ? `พบ <b style="color:var(--text)">${hits.length}</b> ${label}`
+    ? `พบ <b style="color:var(--text)">${hits.length}</b> ${label}
+       <div class="rank-note">★ อันดับแนะนำวัดจากความถี่ของคำที่ค้นในช่วงนั้น ถ่วงด้วยความยาวข้อความ</div>`
     : "";
 
   if (!hits.length) {
@@ -881,7 +902,7 @@ function ftRender(q) {
     return;
   }
 
-  box.innerHTML = hits.slice(0, FT_MAX).map(([ei, sec, txt, i]) => {
+  box.innerHTML = hits.slice(0, FT_MAX).map(([ei, sec, txt, i], rank) => {
     const [vid, title] = FT.eps[ei];
     const from = Math.max(0, i - 70), to = Math.min(txt.length, i + 220);
     const snip = (from ? "…" : "") + hilite(txt.slice(from, to), terms) +
@@ -891,6 +912,7 @@ function ftRender(q) {
       <div class="ft-when">
         <a class="ft-jump" href="https://www.youtube.com/watch?v=${vid}&t=${sec}s"
            target="_blank" rel="noopener">▶ ${hms(sec)}</a>
+        ${rankBadge(rank)}
         <span class="ft-thai">${thaiTime(hms(sec))}</span>
       </div>
       <div class="ft-body">
@@ -903,6 +925,42 @@ function ftRender(q) {
 }
 
 // ไฮไลต์ทุกคำที่ค้น (escape ก่อนเสมอ แล้วค่อยแทรก <mark>)
+/* ── อันดับแนะนำ ──
+   1A: ให้คะแนนจากความถี่ของคำที่ค้น ถ่วงด้วยความยาวข้อความ
+       (บล็อกยาวย่อมเจอคำบ่อยกว่าโดยธรรมชาติ ถ้าไม่ถ่วงจะได้เปรียบอย่างไม่เป็นธรรม)
+   1B: ใช้ค่าความใกล้เคียงเชิงความหมายที่คำนวณไว้แล้ว
+   Type 2/3: ให้คะแนนจากคำค้นที่ตรงกับชื่อแขก/EP/โน้ต/ชื่อ competency */
+function rankBadge(i) {
+  if (i > 2) return "";
+  const t = ["1st", "2nd", "3rd"][i];
+  return `<span class="rank rank-${i + 1}">★ ${t}</span>`;
+}
+
+function lexScore(txt, terms) {
+  const low = txt.toLowerCase();
+  let total = 0, covered = 0;
+  for (const t of terms) {
+    let n = 0, i = low.indexOf(t);
+    while (i !== -1) { n++; i = low.indexOf(t, i + t.length); }
+    if (n) covered++;
+    total += n;
+  }
+  return (total * (1 + covered)) / Math.sqrt(Math.max(120, txt.length));
+}
+
+function cardScore(r, q) {
+  const c = compOf(r.n), p = pillarOf(c.p);
+  const hay = [r.guest, r.ep, r.note, c.th, c.en, p.en, p.th].join(" ").toLowerCase();
+  let s = 0;
+  q.toLowerCase().split(/[\s,]+/).filter(Boolean).forEach(t => {
+    let n = 0, i = hay.indexOf(t);
+    while (i !== -1) { n++; i = hay.indexOf(t, i + t.length); }
+    s += n;
+  });
+  if (isQAd(r.qa)) s += 0.5;           // คลิปที่ QA แล้วได้เปรียบเล็กน้อย
+  return s;
+}
+
 function hilite(text, terms) {
   const low = text.toLowerCase();
   // 1) หาทุกช่วงที่ตรงกับแต่ละคำ
@@ -1022,8 +1080,9 @@ function semRender(hits) {
       ลองอธิบายให้ยาวขึ้นหรือเจาะจงขึ้น เช่นแทนที่จะพิมพ์ "ทีม" ให้พิมพ์ "ทีมทะเลาะกันเอง ไม่คุยกัน"</div>`;
     return;
   }
-  semSay(`ช่วงที่ความหมายใกล้เคียงที่สุด <b style="color:var(--text)">${hits.length}</b> ช่วง (เรียงจากใกล้เคียงมากไปน้อย)`);
-  box.innerHTML = hits.map(([score, bi]) => {
+  semSay(`ช่วงที่ความหมายใกล้เคียงที่สุด <b style="color:var(--text)">${hits.length}</b> ช่วง (เรียงจากใกล้เคียงมากไปน้อย)
+     <div class="rank-note">★ อันดับแนะนำวัดจากความใกล้เคียงเชิงความหมายกับสิ่งที่พิมพ์</div>`);
+  box.innerHTML = hits.map(([score, bi], rank) => {
     const [ei, sec, txt] = FT.blocks[bi];
     const [vid, title] = FT.eps[ei];
     const g = guestOf(vid);
@@ -1032,6 +1091,7 @@ function semRender(hits) {
       <div class="ft-when">
         <a class="ft-jump" href="https://www.youtube.com/watch?v=${vid}&t=${sec}s"
            target="_blank" rel="noopener">▶ ${hms(sec)}</a>
+        ${rankBadge(rank)}
         <span class="ft-thai">${thaiTime(hms(sec))}</span>
         <span class="sem-score">ใกล้เคียง ${pct}%<span class="bar"><i style="width:${pct}%"></i></span></span>
       </div>
